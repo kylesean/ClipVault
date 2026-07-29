@@ -1,14 +1,18 @@
 # ClipVault 项目管理命令
 .PHONY: dev stop build apk deploy update-douyin setup
 
+# 可通过环境变量覆盖，默认 8000
+PORT ?= 8000
+DOUYIN_PORT ?= 8080
+
 # ===== 本地开发 =====
 
 ## 启动后端服务（开发模式）
 dev:
-	@echo "启动抖音解析服务 (port 8080)..."
-	cd backend/douyin_api && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port 8080 &
-	@echo "启动主解析服务 (port 8000)..."
-	cd backend && uv run uvicorn app.main:app --host 0.0.0.0 --port 8000 --reload
+	@echo "启动抖音解析服务 (port $(DOUYIN_PORT))..."
+	cd backend/douyin_api && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port $(DOUYIN_PORT) &
+	@echo "启动主解析服务 (port $(PORT))..."
+	cd backend && CLIPVAULT_PORT=$(PORT) uv run uvicorn app.main:app --host 0.0.0.0 --port $(PORT) --reload
 
 ## 停止所有后端服务
 stop:
