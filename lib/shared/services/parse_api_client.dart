@@ -1,22 +1,20 @@
-import 'package:clip_vault/core/constants/app_constants.dart';
 import 'package:clip_vault/core/errors/app_exceptions.dart';
 import 'package:clip_vault/shared/models/parse_result.dart';
 import 'package:dio/dio.dart';
 
 /// 后端解析服务 API 客户端
 class ParseApiClient {
-  late final Dio _dio;
+  final Dio _dio;
 
-  ParseApiClient({String? baseUrl}) {
-    _dio = Dio(
-      BaseOptions(
-        baseUrl: baseUrl ?? AppConstants.parseApiBaseUrl,
-        connectTimeout: const Duration(seconds: 10),
-        receiveTimeout: Duration(seconds: AppConstants.parseTimeoutSeconds),
-        headers: {'Content-Type': 'application/json'},
-      ),
-    );
-  }
+  ParseApiClient({required String baseUrl})
+      : _dio = Dio(
+          BaseOptions(
+            baseUrl: baseUrl,
+            connectTimeout: const Duration(seconds: 10),
+            receiveTimeout: const Duration(seconds: 30),
+            headers: {'Content-Type': 'application/json'},
+          ),
+        );
 
   /// 解析视频链接
   Future<ParseResult> parseUrl(String url) async {

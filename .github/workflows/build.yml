@@ -26,10 +26,12 @@ jobs:
       - run: flutter pub get
       - run: flutter build apk --release
 
-      - uses: actions/upload-artifact@v4
+      - uses: softprops/action-gh-release@v2
         with:
-          name: android-apk
-          path: build/app/outputs/flutter-apk/app-release.apk
+          files: build/app/outputs/flutter-apk/app-release.apk
+          name: "ClipVault ${{ github.ref_name }}"
+          draft: false
+          prerelease: false
 
   ios:
     runs-on: macos-latest
@@ -45,7 +47,13 @@ jobs:
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
 
-      - uses: actions/upload-artifact@v4
+      - run: |
+          cd build/ios/iphoneos
+          zip -r Runner.app.zip Runner.app
+
+      - uses: softprops/action-gh-release@v2
         with:
-          name: ios-app
-          path: build/ios/iphoneos/Runner.app
+          files: build/ios/iphoneos/Runner.app.zip
+          name: "ClipVault ${{ github.ref_name }}"
+          draft: false
+          prerelease: false

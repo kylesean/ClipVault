@@ -10,12 +10,14 @@ class SettingsState {
   final int maxConcurrentDownloads;
   final bool downloadNotification;
   final ThemeMode themeMode;
+  final String serverUrl;
 
   const SettingsState({
     this.clipboardMonitor = true,
     this.maxConcurrentDownloads = AppConstants.defaultMaxConcurrentDownloads,
     this.downloadNotification = true,
     this.themeMode = ThemeMode.system,
+    this.serverUrl = AppConstants.parseApiBaseUrl,
   });
 
   SettingsState copyWith({
@@ -23,6 +25,7 @@ class SettingsState {
     int? maxConcurrentDownloads,
     bool? downloadNotification,
     ThemeMode? themeMode,
+    String? serverUrl,
   }) {
     return SettingsState(
       clipboardMonitor: clipboardMonitor ?? this.clipboardMonitor,
@@ -30,6 +33,7 @@ class SettingsState {
           maxConcurrentDownloads ?? this.maxConcurrentDownloads,
       downloadNotification: downloadNotification ?? this.downloadNotification,
       themeMode: themeMode ?? this.themeMode,
+      serverUrl: serverUrl ?? this.serverUrl,
     );
   }
 }
@@ -40,6 +44,7 @@ class SettingsController extends Notifier<SettingsState> {
   static const _keyMaxDownloads = 'settings_max_concurrent_downloads';
   static const _keyNotification = 'settings_download_notification';
   static const _keyThemeMode = 'settings_theme_mode';
+  static const _keyServerUrl = 'settings_server_url';
 
   @override
   SettingsState build() {
@@ -57,6 +62,7 @@ class SettingsController extends Notifier<SettingsState> {
           AppConstants.defaultMaxConcurrentDownloads,
       downloadNotification: prefs.getBool(_keyNotification) ?? true,
       themeMode: ThemeMode.values[prefs.getInt(_keyThemeMode) ?? 0],
+      serverUrl: prefs.getString(_keyServerUrl) ?? AppConstants.parseApiBaseUrl,
     );
   }
 
@@ -66,6 +72,7 @@ class SettingsController extends Notifier<SettingsState> {
     await prefs.setInt(_keyMaxDownloads, state.maxConcurrentDownloads);
     await prefs.setBool(_keyNotification, state.downloadNotification);
     await prefs.setInt(_keyThemeMode, state.themeMode.index);
+    await prefs.setString(_keyServerUrl, state.serverUrl);
   }
 
   void setClipboardMonitor(bool value) {
@@ -85,6 +92,11 @@ class SettingsController extends Notifier<SettingsState> {
 
   void setThemeMode(ThemeMode mode) {
     state = state.copyWith(themeMode: mode);
+    _persist();
+  }
+
+  void setServerUrl(String url) {
+    state = state.copyWith(serverUrl: url.trim());
     _persist();
   }
 }
@@ -178,6 +190,15 @@ class SettingsPage extends ConsumerWidget {
 
           const Divider(),
 
+          // 服务器
+          _buildSectionHeader(context, '服务器'),
+          _ServerUrlTile(
+            currentUrl: settings.serverUrl,
+            onSave: controller.setServerUrl,
+          ),
+
+          const Divider(),
+
           // 关于
           _buildSectionHeader(context, '关于'),
           const ListTile(
@@ -201,6 +222,84 @@ class SettingsPage extends ConsumerWidget {
         style: Theme.of(context).textTheme.titleSmall?.copyWith(
               color: Theme.of(context).colorScheme.primary,
             ),
+      ),
+    );
+  }
+}
+
+/// 服务器地址配置组件
+class _ServerUrlTile extends StatefulWidget {
+  final String currentUrl;
+  final ValueChanged<String> onSave;
+
+  const _ServerUrlTile({required this.currentUrl, required this.onSave});
+
+  @override
+  State<_ServerUrlTile> createState() => _ServerUrlTileState();
+}
+
+class _ServerUrlTileState extends State<_ServerUrlTile> {
+  late final TextEditingController _controller;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = TextEditingController(text: widget.currentUrl);
+  }
+
+  @override
+  void didUpdateWidget(_ServerUrlTile oldWidget) {
+    super.didUpdateWidget(oldWidget);
+    if (oldWidget.currentUrl != widget.currentUrl) {
+      _controller.text = widget.currentUrl;
+    }
+  }
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _save() {
+    widget.onSave(_controller.text);
+    FocusScope.of(context).unfocus();
+    ScaffoldMessenger.of(context).showSnackBar(
+      const SnackBar(content: Text('服务器地址已保存'), duration: Duration(seconds: 2)),
+    );
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    return Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          TextField(
+            controller: _controller,
+            decoration: InputDecoration(
+              labelText: '解析服务地址',
+              hintText: 'http://your-server:8000',
+              border: OutlineInputBorder(
+                borderRadius: BorderRadius.circular(12),
+              ),
+              suffixIcon: IconButton(
+                icon: const Icon(Icons.check_rounded),
+                onPressed: _save,
+              ),
+            ),
+            keyboardType: TextInputType.url,
+            onSubmitted: (_) => _save(),
+          ),
+          const SizedBox(height: 4),
+          Text(
+            '部署后修改为你的服务器地址，如 https://api.example.com',
+            style: Theme.of(context).textTheme.bodySmall?.copyWith(
+                  color: Theme.of(context).colorScheme.outline,
+                ),
+          ),
+        ],
       ),
     );
   }
