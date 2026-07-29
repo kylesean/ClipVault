@@ -4,7 +4,17 @@ on:
   push:
     tags:
       - "v*"
+    paths:
+      - "lib/**"
+      - "android/**"
+      - "ios/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
+      - ".github/workflows/build.yml"
   workflow_dispatch:
+
+permissions:
+  contents: write
 
 jobs:
   android:
