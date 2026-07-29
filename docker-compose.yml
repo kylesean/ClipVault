@@ -1,0 +1,40 @@
+# ClipVault 后端服务一键部署
+# 用法: docker compose up -d
+
+services:
+  # 主解析服务（你的代码）
+  parse-service:
+    build: ./backend
+    ports:
+      - "${CLIPVAULT_PORT:-8000}:8000"
+    restart: unless-stopped
+    environment:
+      - CLIPVAULT_CORS_ORIGINS=${CLIPVAULT_CORS_ORIGINS:-*}
+      - DOUYIN_API_URL=http://douyin-api:80
+      - COOKIE_REFRESH_INTERVAL=${COOKIE_REFRESH_INTERVAL:-43200}
+    depends_on:
+      douyin-api:
+        condition: service_started
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "2.0"
+
+  # 抖音/TikTok/B站解析引擎（Git Submodule）
+  douyin-api:
+    build: ./backend/douyin_api
+    ports:
+      - "${DOUYIN_API_PORT:-8080}:80"
+    restart: unless-stopped
+    volumes:
+      # 挂载配置文件，方便更新 Cookie 而不用重建镜像
+      - ./backend/douyin_api/crawlers/douyin/web/config.yaml:/app/crawlers/douyin/web/config.yaml
+      - ./backend/douyin_api/crawlers/tiktok/web/config.yaml:/app/crawlers/tiktok/web/config.yaml
+    environment:
+      - TZ=Asia/Shanghai
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "1.0"

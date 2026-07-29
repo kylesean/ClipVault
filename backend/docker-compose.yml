@@ -1,0 +1,30 @@
+services:
+  parse-service:
+    build: .
+    ports:
+      - "${CLIPVAULT_PORT:-8000}:8000"
+    restart: unless-stopped
+    environment:
+      - CLIPVAULT_CORS_ORIGINS=${CLIPVAULT_CORS_ORIGINS:-*}
+      - CLIPVAULT_PORT=8000
+      - DOUYIN_API_URL=http://douyin-api:80
+    depends_on:
+      - douyin-api
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+          cpus: "2.0"
+
+  douyin-api:
+    image: evil0ctal/douyin-tiktok-api:latest
+    ports:
+      - "8080:80"
+    restart: unless-stopped
+    environment:
+      - DOUYIN_COOKIE=${DOUYIN_COOKIE:-}
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+          cpus: "1.0"

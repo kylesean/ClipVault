@@ -1,0 +1,64 @@
+name: clip_vault
+description: "ClipVault - 短视频下载管理工具"
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: ^3.12.2
+
+dependencies:
+  flutter:
+    sdk: flutter
+  cupertino_icons: ^1.0.8
+
+  # State Management
+  flutter_riverpod: ^2.6.1
+  riverpod_annotation: ^2.6.1
+
+  # Routing
+  go_router: ^14.8.1
+
+  # Database
+  drift: ^2.25.1
+  sqlite3_flutter_libs: ^0.5.28
+  path: ^1.9.1
+
+  # Network
+  dio: ^5.8.0+1
+
+  # Video Player
+  media_kit: ^1.1.11
+  media_kit_video: ^1.2.5
+  media_kit_libs_video: ^1.0.5
+
+  # Storage & Permissions
+  path_provider: ^2.1.5
+  permission_handler: ^11.4.0
+  saver_gallery: ^4.0.1
+  shared_preferences: ^2.3.4
+
+  # Share Intent
+  receive_sharing_intent: ^1.8.1
+
+  # Notifications
+  flutter_local_notifications: ^18.0.1
+
+  # Utils
+  uuid: ^4.5.1
+  intl: ^0.20.2
+  url_launcher: ^6.3.1
+  share_plus: ^10.1.4
+  collection: ^1.19.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^6.0.0
+  drift_dev: ^2.25.1
+  build_runner: ^2.4.15
+  riverpod_generator: ^2.6.3
+
+flutter:
+  uses-material-design: true
+  assets:
+    - assets/icons/
