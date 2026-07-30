@@ -12,9 +12,10 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-/// 下载服务 Provider
+/// 下载服务 Provider（监听服务器地址变化）
 final downloadServiceProvider = Provider<DownloadService>((ref) {
-  return DownloadService();
+  final serverUrl = ref.watch(settingsControllerProvider).serverUrl;
+  return DownloadService(serverUrl: serverUrl);
 });
 
 /// 解析 API 客户端 Provider（监听设置中的服务器地址，变化时自动重建）

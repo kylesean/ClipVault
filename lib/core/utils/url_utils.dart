@@ -5,10 +5,12 @@ class UrlUtils {
   /// 已知平台链接模式
   static final _platformPatterns = <String, RegExp>{
     'douyin': RegExp(r'(v\.douyin\.com|www\.douyin\.com|www\.iesdouyin\.com)'),
+    'tiktok': RegExp(r'(tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)'),
     'bilibili': RegExp(r'(bilibili\.com|b23\.tv)'),
     'kuaishou': RegExp(r'(kuaishou\.com|v\.kuaishou\.com)'),
     'xiaohongshu': RegExp(r'(xiaohongshu\.com|xhslink\.com)'),
     'youtube': RegExp(r'(youtube\.com|youtu\.be)'),
+    'instagram': RegExp(r'(instagram\.com|instagr\.am)'),
     'weibo': RegExp(r'(weibo\.com|weibo\.cn)'),
   };
 
@@ -48,10 +50,12 @@ class UrlUtils {
   static String platformDisplayName(String? platform) {
     return switch (platform) {
       'douyin' => '抖音',
+      'tiktok' => 'TikTok',
       'bilibili' => 'B站',
       'kuaishou' => '快手',
       'xiaohongshu' => '小红书',
       'youtube' => 'YouTube',
+      'instagram' => 'Instagram',
       'weibo' => '微博',
       _ => '其他',
     };

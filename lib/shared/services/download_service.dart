@@ -16,6 +16,8 @@ typedef DownloadProgressCallback = void Function(
 
 /// 视频文件下载服务
 class DownloadService {
+  final String _serverUrl;
+
   final Dio _dio = Dio(BaseOptions(
     headers: {
       'User-Agent':
@@ -26,17 +28,7 @@ class DownloadService {
   ));
   final _uuid = const Uuid();
 
-  /// 根据平台名称返回对应的 Referer（绕过 CDN 防盗链）
-  static String _refererForPlatform(String platform) {
-    return switch (platform) {
-      'douyin' => 'https://www.douyin.com/',
-      'tiktok' => 'https://www.tiktok.com/',
-      'bilibili' => 'https://www.bilibili.com/',
-      'youtube' => 'https://www.youtube.com/',
-      'instagram' => 'https://www.instagram.com/',
-      _ => '',
-    };
-  }
+  DownloadService({required String serverUrl}) : _serverUrl = serverUrl;
 
   /// 获取视频存储目录
   Future<Directory> getVideoDirectory() async {
@@ -60,6 +52,7 @@ class DownloadService {
 
   /// 下载视频文件
   /// 返回本地文件路径
+  /// 通过后端代理下载，解决 CDN 防盗链/认证问题
   Future<String> downloadVideo({
     required String url,
     required String title,
@@ -71,19 +64,18 @@ class DownloadService {
     final fileName = _generateFileName(title);
     final filePath = p.join(videoDir.path, fileName);
 
-    // 根据解析出的平台设置 Referer
-    final referer = _refererForPlatform(platform);
+    // 通过后端代理下载（后端会用正确的 headers 从 CDN 拉取）
+    final proxyUrl = '$_serverUrl/api/download-proxy'
+        '?url=${Uri.encodeComponent(url)}'
+        '&platform=${Uri.encodeComponent(platform)}';
 
     int lastTick = DateTime.now().millisecondsSinceEpoch;
     int lastBytes = 0;
 
     await _dio.download(
-      url,
+      proxyUrl,
       filePath,
       cancelToken: cancelToken,
-      options: referer.isNotEmpty
-          ? Options(headers: {'Referer': referer})
-          : null,
       onReceiveProgress: (received, total) {
         final now = DateTime.now().millisecondsSinceEpoch;
         final elapsed = now - lastTick;

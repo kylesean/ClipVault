@@ -9,6 +9,7 @@ from slowapi import _rate_limit_exceeded_handler
 from slowapi.errors import RateLimitExceeded
 
 from app.routers.cookies import router as cookies_router
+from app.routers.download_proxy import router as download_proxy_router
 from app.routers.parse import limiter, router as parse_router
 from app.services.cookie_refresh_service import start_cookie_scheduler
 
@@ -52,6 +53,7 @@ app.add_middleware(
 
 app.include_router(parse_router)
 app.include_router(cookies_router)
+app.include_router(download_proxy_router)
 
 
 if __name__ == "__main__":
