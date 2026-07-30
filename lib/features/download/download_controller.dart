@@ -162,6 +162,7 @@ class DownloadController extends Notifier<DownloadQueueState> {
       final localPath = await downloadService.downloadVideo(
         url: task.url,
         title: result.title,
+        platform: result.platform,
         cancelToken: cancelToken,
         onProgress: (received, total, speed) {
           final progress = total > 0 ? received / total : 0.0;

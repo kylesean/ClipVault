@@ -90,14 +90,16 @@ class _HomePageState extends ConsumerState<HomePage> {
             if (downloadState.tasks
                 .where((t) =>
                     t.status == DownloadStatus.downloading ||
-                    t.status == DownloadStatus.pending)
+                    t.status == DownloadStatus.pending ||
+                    t.status == DownloadStatus.failed)
                 .isNotEmpty) ...[
-              _buildSectionHeader('下载中'),
+              _buildSectionHeader('下载任务'),
               const SizedBox(height: 8),
               ...downloadState.tasks
                   .where((t) =>
                       t.status == DownloadStatus.downloading ||
-                      t.status == DownloadStatus.pending)
+                      t.status == DownloadStatus.pending ||
+                      t.status == DownloadStatus.failed)
                   .map((t) => _buildDownloadTile(t)),
               const SizedBox(height: 24),
             ],
@@ -249,34 +251,51 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Widget _buildDownloadTile(DownloadTask task) {
+    final isFailed = task.status == DownloadStatus.failed;
     return Card(
+      color: isFailed
+          ? Theme.of(context).colorScheme.errorContainer.withValues(alpha: 0.3)
+          : null,
       child: ListTile(
-        leading: const Icon(Icons.downloading_rounded),
+        leading: Icon(
+          isFailed ? Icons.error_outline_rounded : Icons.downloading_rounded,
+          color: isFailed ? Theme.of(context).colorScheme.error : null,
+        ),
         title: Text(
           task.title ?? '下载中...',
           maxLines: 1,
           overflow: TextOverflow.ellipsis,
         ),
-        subtitle: task.status == DownloadStatus.downloading
-            ? Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  const SizedBox(height: 4),
-                  LinearProgressIndicator(value: task.progress),
-                  const SizedBox(height: 4),
-                  Text(
-                    '${(task.progress * 100).toStringAsFixed(0)}%'
-                    '${task.speedBytesPerSec != null ? ' · ${FormatUtils.formatSpeed(task.speedBytesPerSec!)}' : ''}',
-                    style: Theme.of(context).textTheme.bodySmall,
-                  ),
-                ],
+        subtitle: isFailed
+            ? Text(
+                task.errorMessage ?? '下载失败',
+                style: TextStyle(
+                  color: Theme.of(context).colorScheme.error,
+                  fontSize: 12,
+                ),
+                maxLines: 2,
+                overflow: TextOverflow.ellipsis,
               )
-            : const Text('等待中...'),
+            : task.status == DownloadStatus.downloading
+                ? Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      const SizedBox(height: 4),
+                      LinearProgressIndicator(value: task.progress),
+                      const SizedBox(height: 4),
+                      Text(
+                        '${(task.progress * 100).toStringAsFixed(0)}%'
+                        '${task.speedBytesPerSec != null ? ' · ${FormatUtils.formatSpeed(task.speedBytesPerSec!)}' : ''}',
+                        style: Theme.of(context).textTheme.bodySmall,
+                      ),
+                    ],
+                  )
+                : const Text('等待中...'),
         trailing: IconButton(
           icon: const Icon(Icons.close_rounded),
           onPressed: () => ref
               .read(downloadControllerProvider.notifier)
-              .cancelDownload(task.id),
+              .removeTask(task.id),
         ),
       ),
     );

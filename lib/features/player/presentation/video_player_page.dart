@@ -5,9 +5,9 @@ import 'package:clip_vault/shared/services/providers.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:gal/gal.dart';
 import 'package:media_kit/media_kit.dart';
 import 'package:media_kit_video/media_kit_video.dart' as mk;
-import 'package:saver_gallery/saver_gallery.dart';
 import 'package:share_plus/share_plus.dart';
 
 /// 视频详情/播放页面
@@ -58,18 +58,14 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
     if (_video == null) return;
 
     try {
-      final result = await SaverGallery.saveFile(
-        filePath: _video!.localPath,
-        fileName: '${_video!.title}.mp4',
-        androidRelativePath: 'Movies/ClipVault',
-        skipIfExists: true,
+      await Gal.putVideo(
+        _video!.localPath,
+        album: 'ClipVault',
       );
 
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result.isSuccess ? '已保存到相册' : '保存失败: ${result.errorMessage}'),
-          ),
+          const SnackBar(content: Text('已保存到相册')),
         );
       }
     } catch (e) {
