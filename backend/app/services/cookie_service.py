@@ -154,17 +154,28 @@ async def generate_cookies(platform: str) -> Path:
 async def ensure_cookies(platform: str) -> Path | None:
     """
     确保平台有可用的新鲜 Cookie。
-    如果已有且未过期则直接返回，否则自动生成。
+    优先级：已有未过期 → 纯 API 生成 → Playwright 生成 → 旧 Cookie 兆底。
     """
     if is_cookie_fresh(platform):
         return _cookie_file_path(platform)
 
+    # 方式 1：纯 API（服务器友好，无需浏览器）
+    try:
+        from app.services.cookie_refresh_service import refresh_douyin_cookie
+        success = await refresh_douyin_cookie()
+        if success:
+            return _cookie_file_path(platform)
+    except Exception as e:
+        logger.warning("API 方式生成 Cookie 失败: %s", e)
+
+    # 方式 2：Playwright（需要 Chrome）
     try:
         return await generate_cookies(platform)
     except Exception as e:
-        logger.error("为 %s 生成 Cookie 失败: %s", platform, e)
-        # 如果有旧的，凑合用
-        old = _cookie_file_path(platform)
-        if old.exists():
-            return old
-        return None
+        logger.warning("Playwright 方式生成 Cookie 失败: %s", e)
+
+    # 兆底：用旧的
+    old = _cookie_file_path(platform)
+    if old.exists():
+        return old
+    return None

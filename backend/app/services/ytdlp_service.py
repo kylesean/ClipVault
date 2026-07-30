@@ -180,7 +180,7 @@ def _do_parse(url: str, cookie_file: Path | None) -> ParseData:
 async def parse_video_url(url: str) -> ParseData:
     """
     异步入口：
-      1. 检测平台是否需要 Cookie，若需要且不存在/过期 → 自动用 Playwright 生成
+      1. 检测平台是否需要 Cookie，若需要且不存在/过期 → 自动刷新
       2. 将同步解析调度到线程池
     """
     from app.services.cookie_service import ensure_cookies
@@ -196,13 +196,38 @@ async def parse_video_url(url: str) -> ParseData:
             _executor, partial(_parse_video_url_sync, url)
         )
     except Exception as e:
-        # 如果是 Cookie 错误且平台已知，尝试强制刷新 Cookie 后重试
+        # 如果是 Cookie 错误且平台已知，尝试刷新 Cookie 后重试
         error_msg = str(e).lower()
         if ("cookie" in error_msg or "fresh cookies" in error_msg) and platform_hint:
-            from app.services.cookie_service import generate_cookies
-            logger.info("解析失败，强制刷新 %s Cookie 后重试", platform_hint)
-            await generate_cookies(platform_hint)
-            return await loop.run_in_executor(
-                _executor, partial(_parse_video_url_sync, url)
-            )
+            refreshed = await _try_refresh_cookies(platform_hint)
+            if refreshed:
+                return await loop.run_in_executor(
+                    _executor, partial(_parse_video_url_sync, url)
+                )
         raise
+
+
+async def _try_refresh_cookies(platform: str) -> bool:
+    """
+    尝试刷新 Cookie，优先级：
+      1. 纯 API 方式（无需浏览器，适合服务器）
+      2. Playwright 方式（需要 Chrome，适合本地开发）
+    """
+    # 方式 1：纯 API（服务器友好）
+    try:
+        from app.services.cookie_refresh_service import refresh_douyin_cookie
+        logger.info("尝试通过内置 API 刷新 %s Cookie...", platform)
+        return await refresh_douyin_cookie()
+    except Exception as e:
+        logger.warning("API 方式刷新失败: %s", e)
+
+    # 方式 2：Playwright（本地开发用，服务器可能没有 Chrome）
+    try:
+        from app.services.cookie_service import generate_cookies
+        logger.info("尝试通过 Playwright 刷新 %s Cookie...", platform)
+        await generate_cookies(platform)
+        return True
+    except Exception as e:
+        logger.warning("Playwright 方式刷新失败（服务器可能未安装 Chrome）: %s", e)
+
+    return False
