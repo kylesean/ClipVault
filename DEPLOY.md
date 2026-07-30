@@ -42,13 +42,17 @@ TokenManager:
 ### 4. 启动服务
 
 ```bash
+# 默认端口 8000/8080，如需修改：
+echo "CLIPVAULT_PORT=9000" > .env
+echo "DOUYIN_API_PORT=9001" >> .env
+
 docker compose up -d
 ```
 
-验证：
+验证（端口以你配置的为准）：
 
 ```bash
-curl http://localhost:8000/api/health
+curl http://localhost:9000/api/health
 # {"status":"ok","service":"clipvault-parse"}
 ```
 
@@ -85,6 +89,8 @@ make setup
 
 ### 4. 创建 Systemd 服务
 
+> 以下示例使用端口 9000/9001，请根据你服务器实际情况修改。
+
 ```bash
 sudo tee /etc/systemd/system/clipvault.service << 'EOF'
 [Unit]
@@ -95,10 +101,11 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/opt/ClipVault/backend
-ExecStart=/opt/ClipVault/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 8000
+ExecStart=/opt/ClipVault/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 9000
 Restart=always
 RestartSec=5
-Environment=DOUYIN_API_URL=http://127.0.0.1:8080
+Environment=CLIPVAULT_PORT=9000
+Environment=DOUYIN_API_URL=http://127.0.0.1:9001
 
 [Install]
 WantedBy=multi-user.target
@@ -113,7 +120,7 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/opt/ClipVault/backend/douyin_api
-ExecStart=/opt/ClipVault/backend/douyin_api/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 8080
+ExecStart=/opt/ClipVault/backend/douyin_api/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 9001
 Restart=always
 RestartSec=5
 
@@ -146,7 +153,7 @@ server {
     server_name api.yourdomain.com;
 
     location / {
-        proxy_pass http://127.0.0.1:8000;
+        proxy_pass http://127.0.0.1:9000;  # 改为你配置的端口
         proxy_set_header Host $host;
         proxy_set_header X-Real-IP $remote_addr;
         proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
@@ -178,17 +185,12 @@ sudo certbot --nginx -d api.yourdomain.com
 
 ## 客户端连接
 
-App 中修改后端地址（`lib/core/constants/app_constants.dart`）：
+**无需重新编译 APK**。用户在 App 内「设置 → 服务器」直接填写地址即可：
 
-```dart
-static const String parseApiBaseUrl = 'http://你的服务器IP:8000';
-```
+- 直连：`http://你的服务器IP:9000`
+- 带 Nginx + SSL：`https://api.yourdomain.com`
 
-如果加了 Nginx + SSL：
-
-```dart
-static const String parseApiBaseUrl = 'https://api.yourdomain.com';
-```
+> 默认值在 `lib/core/constants/app_constants.dart` 中定义，仅影响首次安装时的初始值。
 
 ---
 
@@ -203,8 +205,8 @@ systemctl status clipvault # Systemd 方式
 docker compose logs -f
 journalctl -u clipvault -f
 
-# 刷新 Cookie（解析失败时）
-curl -X POST http://localhost:8000/api/cookies/douyin/refresh
+# 刷新 Cookie（解析失败时，端口以你配置的为准）
+curl -X POST http://localhost:9000/api/cookies/douyin/refresh
 
 # 更新抖音解析引擎
 make update-douyin
@@ -217,6 +219,6 @@ make update-douyin
 | 症状 | 原因 | 解决 |
 |------|------|------|
 | 解析返回空/403 | Cookie 过期 | 刷新 Cookie |
-| 连接超时 | 防火墙未放行端口 | `ufw allow 8000` |
-| 抖音解析失败但 YouTube 正常 | 抖音引擎未启动 | 检查 8080 端口服务 |
+| 连接超时 | 防火墙未放行端口 | `ufw allow 9000`（改为你配置的端口） |
+| 抖音解析失败但 YouTube 正常 | 抖音引擎未启动 | 检查抖音引擎端口服务（默认 9001） |
 | 内存不足 OOM | 资源限制太小 | 调高 docker-compose 内存限制 |
