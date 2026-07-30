@@ -1,12 +1,21 @@
 """Cookie 管理路由 - 上传/查看/删除/自动生成平台 Cookie 文件"""
 
+import logging
 from pathlib import Path
 
 from fastapi import APIRouter, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 
-from app.services.cookie_service import PLATFORM_URLS, ensure_cookies, generate_cookies
+from app.models.schemas import CookieRefreshRequest
+from app.services.cookie_service import (
+    PLATFORM_URLS,
+    ensure_cookies,
+    generate_cookies,
+    save_browser_cookie_string,
+)
 from app.services.ytdlp_service import COOKIES_DIR
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/cookies", tags=["cookies"])
 
@@ -74,23 +83,71 @@ async def get_cookie(platform: str):
 
 
 @router.post("/{platform}/refresh")
-async def refresh_cookie(platform: str):
+async def refresh_cookie(platform: str, body: CookieRefreshRequest | None = None):
     """
-    强制刷新指定平台的 Cookie（使用无头浏览器自动生成）。
-    支持的平台: douyin, kuaishou, xiaohongshu, bilibili, weibo
+    刷新指定平台的 Cookie。
+    支持三种方式（按优先级）：
+      1. 直接传入 Cookie 字符串（浏览器插件/手动提供）
+      2. 纯 API 生成（无需浏览器）
+      3. Playwright 浏览器生成（需要 Chrome，仅开发环境）
     """
-    if platform not in PLATFORM_URLS:
+    if platform not in PLATFORM_URLS and platform not in ALLOWED_PLATFORMS:
         raise HTTPException(
             status_code=400,
-            detail=f"不支持自动生成的平台: {platform}，"
-                   f"支持: {sorted(PLATFORM_URLS.keys())}",
+            detail=f"不支持的平台: {platform}，"
+                   f"支持: {sorted(ALLOWED_PLATFORMS)}",
         )
 
+    # 方式 0：直接接收 Cookie 字符串（最优先）
+    if body and body.cookie and body.cookie.strip():
+        try:
+            path = save_browser_cookie_string(platform, body.cookie.strip())
+            # 同时注入到 douyin_api 服务
+            await _inject_cookie_to_service(platform, body.cookie.strip())
+            return {
+                "message": f"平台 {platform} Cookie 已直接保存",
+                "path": str(path),
+            }
+        except Exception as e:
+            logger.error("直接保存 Cookie 失败: %s", e)
+            raise HTTPException(
+                status_code=500,
+                detail=f"Cookie 保存失败: {e}",
+            )
+
+    # 方式 1：纯 API（服务器友好）
+    try:
+        from app.services.cookie_refresh_service import refresh_douyin_cookie
+        success = await refresh_douyin_cookie()
+        if success:
+            return {"message": f"平台 {platform} Cookie 已通过 API 刷新"}
+    except Exception as e:
+        logger.warning("API 方式刷新 Cookie 失败: %s", e)
+
+    # 方式 2：Playwright（需要 Chrome，仅开发环境）
     try:
         path = await generate_cookies(platform)
-        return {
-            "message": f"平台 {platform} Cookie 已自动刷新",
-            "path": str(path),
-        }
+        return {"message": f"平台 {platform} Cookie 已通过浏览器刷新", "path": str(path)}
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Cookie 生成失败: {e}")
+        logger.warning("Playwright 方式刷新 Cookie 失败: %s", e)
+
+    # 所有方式均失败
+    raise HTTPException(
+        status_code=500,
+        detail=(
+            f"Cookie 刷新失败：所有方式均不可用。"
+            f"建议：通过请求体直接提供 Cookie 字符串，"
+            f"例如: {{\"cookie\": \"your_cookie_string\"}}"
+        ),
+    )
+
+
+async def _inject_cookie_to_service(platform: str, cookie_str: str) -> None:
+    """将 Cookie 注入到 douyin_api 解析服务（best-effort）"""
+    if platform != "douyin":
+        return
+    try:
+        from app.services.cookie_refresh_service import update_service_cookie
+        await update_service_cookie(cookie_str)
+    except Exception as e:
+        logger.warning("Cookie 注入解析服务失败（不影响保存）: %s", e)

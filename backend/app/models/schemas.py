@@ -5,6 +5,12 @@ class ParseRequest(BaseModel):
     url: str
 
 
+class CookieRefreshRequest(BaseModel):
+    """Cookie 刷新请求 - 支持直接传入浏览器 Cookie 字符串"""
+    service: str | None = None
+    cookie: str | None = None
+
+
 class VideoFormat(BaseModel):
     quality: str
     url: str

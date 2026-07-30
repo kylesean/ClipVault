@@ -78,6 +78,67 @@ def _save_cookies_netscape(cookies: list[dict], platform: str) -> Path:
     return path
 
 
+# 平台对应的 Cookie 域名
+PLATFORM_DOMAINS = {
+    "douyin": ".douyin.com",
+    "bilibili": ".bilibili.com",
+    "kuaishou": ".kuaishou.com",
+    "xiaohongshu": ".xiaohongshu.com",
+    "weibo": ".weibo.com",
+}
+
+
+def save_browser_cookie_string(platform: str, cookie_str: str) -> Path:
+    """
+    将浏览器格式的 Cookie 字符串（"key1=val1; key2=val2"）
+    转换为 Netscape cookies.txt 格式并保存。
+    适用于浏览器插件或手动提供的 Cookie。
+    """
+    COOKIES_DIR.mkdir(parents=True, exist_ok=True)
+    path = _cookie_file_path(platform)
+    domain = PLATFORM_DOMAINS.get(platform, f".{platform}.com")
+
+    jar = MozillaCookieJar(str(path))
+
+    # 解析 "key1=val1; key2=val2" 格式
+    pairs = [p.strip() for p in cookie_str.split(";") if "=" in p]
+    count = 0
+    for pair in pairs:
+        name, _, value = pair.partition("=")
+        name = name.strip()
+        value = value.strip()
+        if not name:
+            continue
+
+        cookie = Cookie(
+            version=0,
+            name=name,
+            value=value,
+            port=None,
+            port_specified=False,
+            domain=domain,
+            domain_specified=True,
+            domain_initial_dot=True,
+            path="/",
+            path_specified=True,
+            secure=False,
+            expires=None,
+            discard=False,
+            comment=None,
+            comment_url=None,
+            rest={},
+        )
+        jar.set_cookie(cookie)
+        count += 1
+
+    if count == 0:
+        raise ValueError("Cookie 字符串中未解析到有效的 key=value 对")
+
+    jar.save(ignore_discard=True, ignore_expires=True)
+    logger.info("已从浏览器 Cookie 字符串保存 %d 条 Cookie → %s", count, path)
+    return path
+
+
 async def generate_cookies(platform: str) -> Path:
     """
     使用系统 Chrome（headless new 模式）访问平台首页，
