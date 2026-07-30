@@ -8,6 +8,9 @@ services:
     ports:
       - "${CLIPVAULT_PORT:-8000}:8000"
     restart: unless-stopped
+    volumes:
+      # Cookie 文件持久化
+      - ./backend/cookies:/app/cookies
     environment:
       - CLIPVAULT_CORS_ORIGINS=${CLIPVAULT_CORS_ORIGINS:-*}
       - DOUYIN_API_URL=http://douyin-api:80

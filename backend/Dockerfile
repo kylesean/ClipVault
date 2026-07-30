@@ -26,8 +26,12 @@ COPY --from=builder /usr/local/bin /usr/local/bin
 
 COPY app/ ./app/
 
+# 创建 cookies 目录（供运行时写入 Cookie 文件）
+RUN mkdir -p /app/cookies
+
 # 非 root 用户运行
-RUN useradd --create-home appuser
+RUN useradd --create-home appuser \
+    && chown -R appuser:appuser /app/cookies
 USER appuser
 
 EXPOSE 8000
