@@ -18,6 +18,7 @@ permissions:
 
 jobs:
   android:
+    name: Android Release
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
@@ -32,18 +33,25 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - run: flutter pub get
       - run: flutter build apk --release
 
+      - name: Prepare Android Release Artifact
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME:-v0.0.0}"
+          cp build/app/outputs/flutter-apk/app-release.apk "ClipVault-${TAG_NAME}-android.apk"
+
       - uses: softprops/action-gh-release@v2
         with:
-          files: build/app/outputs/flutter-apk/app-release.apk
+          files: ClipVault-${{ github.ref_name }}-android.apk
           name: "ClipVault ${{ github.ref_name }}"
           draft: false
           prerelease: false
 
   ios:
+    name: iOS Release (Sideload IPA)
     runs-on: macos-latest
     steps:
       - uses: actions/checkout@v4
@@ -53,17 +61,24 @@ jobs:
       - uses: subosito/flutter-action@v2
         with:
           channel: stable
+          cache: true
 
       - run: flutter pub get
       - run: flutter build ios --release --no-codesign
 
-      - run: |
+      - name: Create IPA for Sideloading
+        run: |
+          TAG_NAME="${GITHUB_REF_NAME:-v0.0.0}"
+          OUTPUT_IPA="ClipVault-${TAG_NAME}-ios-sideload.ipa"
+
           cd build/ios/iphoneos
-          zip -r Runner.app.zip Runner.app
+          mkdir -p Payload
+          cp -r Runner.app Payload/
+          zip -r "../../../$OUTPUT_IPA" Payload
 
       - uses: softprops/action-gh-release@v2
         with:
-          files: build/ios/iphoneos/Runner.app.zip
+          files: ClipVault-${{ github.ref_name }}-ios-sideload.ipa
           name: "ClipVault ${{ github.ref_name }}"
           draft: false
           prerelease: false
