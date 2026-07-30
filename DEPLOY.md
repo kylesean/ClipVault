@@ -101,7 +101,7 @@ After=network.target
 Type=simple
 User=www-data
 WorkingDirectory=/opt/ClipVault/backend
-ExecStart=/opt/ClipVault/backend/.venv/bin/uvicorn app.main:app --host 127.0.0.1 --port 9000
+ExecStart=/opt/ClipVault/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 --port 9000
 Restart=always
 RestartSec=5
 Environment=CLIPVAULT_PORT=9000
