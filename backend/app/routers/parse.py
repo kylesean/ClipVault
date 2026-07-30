@@ -5,8 +5,9 @@ from slowapi import Limiter
 from slowapi.util import get_remote_address
 
 from app.models.schemas import ParseRequest, ParseResponse
+from app.services.cookie_service import LOGIN_REQUIRED_PLATFORMS
 from app.services.douyin_scraper import parse_douyin_url
-from app.services.ytdlp_service import parse_video_url
+from app.services.ytdlp_service import _guess_platform_from_url, parse_video_url
 
 logger = logging.getLogger(__name__)
 
@@ -48,7 +49,14 @@ async def parse_link(request: Request, req: ParseRequest):
             return ParseResponse(code=4001, message="链接无效或视频已删除")
         if "timeout" in error_msg.lower():
             return ParseResponse(code=4003, message="解析超时，请重试")
-        if "cookie" in error_msg.lower():
+        if "cookie" in error_msg.lower() or "login" in error_msg.lower():
+            platform = _guess_platform_from_url(url)
+            if platform and platform in LOGIN_REQUIRED_PLATFORMS:
+                return ParseResponse(
+                    code=4004,
+                    message=f"平台 {platform} 需要登录态 Cookie，"
+                    f"请先通过浏览器登录 {platform} 后导出 Cookie 并上传到服务端",
+                )
             return ParseResponse(code=4004, message="平台 Cookie 已过期，请刷新后重试")
         return ParseResponse(code=5000, message=f"解析失败: {error_msg}")
 

@@ -16,6 +16,8 @@ from app.services.ytdlp_service import COOKIES_DIR
 logger = logging.getLogger(__name__)
 
 # 平台 → 需要访问的 URL（用于触发 Cookie 生成）
+# 注意：仅限可以通过「访问首页」自动生成 Cookie 的平台
+# Instagram 等需要登录态的平台不在此列，必须手动上传 Cookie
 PLATFORM_URLS = {
     "douyin": "https://www.douyin.com",
     "kuaishou": "https://www.kuaishou.com",
@@ -23,6 +25,9 @@ PLATFORM_URLS = {
     "bilibili": "https://www.bilibili.com",
     "weibo": "https://weibo.com",
 }
+
+# 需要登录态 Cookie 的平台（无法自动生成，必须手动上传）
+LOGIN_REQUIRED_PLATFORMS = {"instagram"}
 
 # Cookie 有效期（秒），超过后自动刷新
 COOKIE_MAX_AGE = 3600 * 12  # 12 小时
@@ -85,6 +90,7 @@ PLATFORM_DOMAINS = {
     "kuaishou": ".kuaishou.com",
     "xiaohongshu": ".xiaohongshu.com",
     "weibo": ".weibo.com",
+    "instagram": ".instagram.com",
 }
 
 
@@ -215,10 +221,23 @@ async def generate_cookies(platform: str) -> Path:
 async def ensure_cookies(platform: str) -> Path | None:
     """
     确保平台有可用的新鲜 Cookie。
-    优先级：已有未过期 → 纯 API 生成 → Playwright 生成 → 旧 Cookie 兆底。
+    优先级：已有未过期 → 纯 API 生成 → Playwright 生成 → 旧 Cookie 兜底。
+    对于需要登录态的平台（如 Instagram），仅检查是否已有上传的 Cookie。
     """
     if is_cookie_fresh(platform):
         return _cookie_file_path(platform)
+
+    # 需要登录态的平台：无法自动生成，只能用已上传的
+    if platform in LOGIN_REQUIRED_PLATFORMS:
+        existing = _cookie_file_path(platform)
+        if existing.exists():
+            logger.info("平台 %s 使用已上传的 Cookie（即使较旧）", platform)
+            return existing
+        logger.warning(
+            "平台 %s 需要登录态 Cookie，请通过 /api/cookies/%s/refresh 接口上传",
+            platform, platform,
+        )
+        return None
 
     # 方式 1：纯 API（服务器友好，无需浏览器）
     try:
@@ -235,7 +254,7 @@ async def ensure_cookies(platform: str) -> Path | None:
     except Exception as e:
         logger.warning("Playwright 方式生成 Cookie 失败: %s", e)
 
-    # 兆底：用旧的
+    # 兜底：用旧的
     old = _cookie_file_path(platform)
     if old.exists():
         return old

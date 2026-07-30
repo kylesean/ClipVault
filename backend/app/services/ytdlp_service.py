@@ -17,7 +17,7 @@ _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ytdlp")
 COOKIES_DIR = Path(__file__).parent.parent.parent / "cookies"
 
 # 需要 Cookie 的平台（无 Cookie 会失败）
-COOKIE_REQUIRED_PLATFORMS = {"douyin", "kuaishou", "xiaohongshu"}
+COOKIE_REQUIRED_PLATFORMS = {"douyin", "kuaishou", "xiaohongshu", "instagram"}
 
 # 平台标识映射
 PLATFORM_MAP = {
@@ -27,6 +27,7 @@ PLATFORM_MAP = {
     "kuaishou": "kuaishou",
     "xiaohongshu": "xiaohongshu",
     "youtube": "youtube",
+    "instagram": "instagram",
     "weibo": "weibo",
     "weibo.cn": "weibo",
 }
@@ -38,6 +39,8 @@ URL_PLATFORM_HINTS = {
     "kuaishou.com": "kuaishou",
     "xiaohongshu.com": "xiaohongshu",
     "xhslink.com": "xiaohongshu",
+    "instagram.com": "instagram",
+    "instagr.am": "instagram",
 }
 
 
@@ -155,7 +158,8 @@ def _parse_video_url_sync(url: str) -> ParseData:
         return _do_parse(url, None)
     except Exception as e:
         error_msg = str(e).lower()
-        if "cookie" in error_msg or "fresh cookies" in error_msg:
+        if "cookie" in error_msg or "login" in error_msg or "sign in" in error_msg:
+            # 尝试用平台 Cookie 或 default Cookie 重试
             platform = platform_hint or "default"
             cookie_file = _get_cookie_file(platform)
             if cookie_file:
@@ -212,7 +216,16 @@ async def _try_refresh_cookies(platform: str) -> bool:
     尝试刷新 Cookie，优先级：
       1. 纯 API 方式（无需浏览器，适合服务器）
       2. Playwright 方式（需要 Chrome，适合本地开发）
+    注意：需要登录态的平台（如 Instagram）无法自动刷新，返回 False。
     """
+    from app.services.cookie_service import LOGIN_REQUIRED_PLATFORMS
+
+    if platform in LOGIN_REQUIRED_PLATFORMS:
+        logger.warning(
+            "平台 %s 需要登录态 Cookie，无法自动刷新，请手动上传", platform
+        )
+        return False
+
     # 方式 1：纯 API（服务器友好）
     try:
         from app.services.cookie_refresh_service import refresh_douyin_cookie
