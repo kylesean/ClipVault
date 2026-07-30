@@ -71,6 +71,7 @@ class DownloadService {
 
     int lastTick = DateTime.now().millisecondsSinceEpoch;
     int lastBytes = 0;
+    int currentSpeed = 0;
 
     await _dio.download(
       proxyUrl,
@@ -80,14 +81,13 @@ class DownloadService {
         final now = DateTime.now().millisecondsSinceEpoch;
         final elapsed = now - lastTick;
 
-        int speed = 0;
         if (elapsed >= 500) {
-          speed = ((received - lastBytes) * 1000 ~/ elapsed);
+          currentSpeed = ((received - lastBytes) * 1000 ~/ elapsed);
           lastTick = now;
           lastBytes = received;
         }
 
-        onProgress?.call(received, total, speed);
+        onProgress?.call(received, total, currentSpeed);
       },
     );
 
