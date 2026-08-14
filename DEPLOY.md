@@ -22,29 +22,32 @@ sudo usermod -aG docker $USER
 ### 2. 克隆项目
 
 ```bash
-git clone --recurse-submodules https://github.com/kylesean/ClipVault.git
+git clone https://github.com/kylesean/ClipVault.git
 cd ClipVault
 ```
 
-### 3. 配置抖音 Cookie
+### 3. 配置抖音 Cookie（可选，推荐）
 
-编辑 `backend/douyin_api/crawlers/douyin/web/config.yaml`，找到 `Cookie:` 行替换为你自己的：
+抖音 Web 解析需要 Cookie。两种方式任选其一：
 
-```yaml
-TokenManager:
-  douyin:
-    headers:
-      Cookie: "ttwid=xxx; s_v_web_id=xxx; __ac_nonce=xxx; ..."
+**方式 A：通过 API 上传**（浏览器装 "Get cookies.txt LOCALLY" 扩展 → douyin.com 导出 cookies.txt）：
+
+```bash
+curl -X POST -F "file=@cookies.txt" http://localhost:8000/api/cookies/douyin
 ```
 
-> 获取方式：浏览器打开 douyin.com → F12 → Network → 复制任意请求的 Cookie 头
+**方式 B：启动时自动生成**：服务启动后会自动调用 ttwid/mssdk 接口生成反爬参数
+（`POST /api/cookies/douyin/refresh` 可手动触发）。数据中心的 IP 可能被抖音风控，
+建议使用住宅 IP 或自备 Cookie。
+
+> Cookie 统一存储于 `backend/cookies/douyin.txt`（0600 权限），
+> 抖音核心算法与 yt-dlp 均从该文件读取。
 
 ### 4. 启动服务
 
 ```bash
-# 默认端口 8000/8080，如需修改：
+# 默认端口 8000，如需修改：
 echo "CLIPVAULT_PORT=9000" > .env
-echo "DOUYIN_API_PORT=9001" >> .env
 
 docker compose up -d
 ```
@@ -60,7 +63,6 @@ curl http://localhost:9000/api/health
 
 ```bash
 git pull
-git submodule update --remote backend/douyin_api
 docker compose up -d --build
 ```
 
@@ -78,18 +80,18 @@ source ~/.bashrc
 ### 2. 克隆并初始化
 
 ```bash
-git clone --recurse-submodules https://github.com/kylesean/ClipVault.git
+git clone https://github.com/kylesean/ClipVault.git
 cd ClipVault
 make setup
 ```
 
 ### 3. 配置 Cookie
 
-同方案一第 3 步。
+同方案一第 3 步（API 上传或自动生成）。
 
 ### 4. 创建 Systemd 服务
 
-> 以下示例使用端口 9000/9001，请根据你服务器实际情况修改。
+> 以下示例使用端口 9000，请根据你服务器实际情况修改。
 
 ```bash
 sudo tee /etc/systemd/system/clipvault.service << 'EOF'
@@ -105,24 +107,6 @@ ExecStart=/opt/ClipVault/backend/.venv/bin/uvicorn app.main:app --host 0.0.0.0 -
 Restart=always
 RestartSec=5
 Environment=CLIPVAULT_PORT=9000
-Environment=DOUYIN_API_URL=http://127.0.0.1:9001
-
-[Install]
-WantedBy=multi-user.target
-EOF
-
-sudo tee /etc/systemd/system/clipvault-douyin.service << 'EOF'
-[Unit]
-Description=ClipVault Douyin Parse Engine
-After=network.target
-
-[Service]
-Type=simple
-User=www-data
-WorkingDirectory=/opt/ClipVault/backend/douyin_api
-ExecStart=/opt/ClipVault/backend/douyin_api/.venv/bin/python -m uvicorn app.main:app --host 127.0.0.1 --port 9001
-Restart=always
-RestartSec=5
 
 [Install]
 WantedBy=multi-user.target
@@ -133,7 +117,6 @@ EOF
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now clipvault-douyin
 sudo systemctl enable --now clipvault
 ```
 
@@ -176,8 +159,7 @@ sudo certbot --nginx -d api.yourdomain.com
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `CLIPVAULT_PORT` | 8000 | 主服务端口 |
-| `DOUYIN_API_PORT` | 8080 | 抖音解析引擎端口（v1.1+ 不再对外暴露，仅内网可达） |
-| `DOUYIN_API_URL` | http://localhost:8080 | 主服务连接抖音引擎的地址 |
+| `DOUYIN_PROXY` | 空 | 抖音接口代理地址（如 `http://127.0.0.1:7890`），未设置时走系统代理 |
 | `COOKIE_REFRESH_INTERVAL` | 43200 | Cookie 自动刷新间隔（秒，默认12h） |
 | `CLIPVAULT_CORS_ORIGINS` | * | 允许的跨域来源（`*` 时不带凭证） |
 | `CLIPVAULT_API_TOKEN` | 空 | **推荐设置**。设置后所有 `/api/cookies` 接口要求 `X-API-Token` 请求头，客户端需在 App「设置 → 服务器 → API Token」填写 |
@@ -219,8 +201,8 @@ journalctl -u clipvault -f
 # 刷新 Cookie（解析失败时，端口以你配置的为准）
 curl -X POST http://localhost:9000/api/cookies/douyin/refresh
 
-# 更新抖音解析引擎
-make update-douyin
+# 更新抖音核心算法（抖音改版后执行）
+make update-douyin-core
 ```
 
 ---
@@ -229,7 +211,8 @@ make update-douyin
 
 | 症状 | 原因 | 解决 |
 |------|------|------|
-| 解析返回空/403 | Cookie 过期 | 刷新 Cookie |
+| 解析返回空/403 | Cookie 过期 | 刷新 Cookie（`/api/cookies/douyin/refresh`） |
+| 解析返回空 body | 服务器 IP 被抖音风控 | 换住宅 IP/代理，或上传自备 Cookie |
 | 连接超时 | 防火墙未放行端口 | `ufw allow 9000`（改为你配置的端口） |
-| 抖音解析失败但 YouTube 正常 | 抖音引擎未启动 | 检查抖音引擎端口服务（默认 9001） |
+| 抖音解析失败但 YouTube 正常 | Cookie 过期或 IP 被风控 | 刷新 Cookie / 更换出口 IP |
 | 内存不足 OOM | 资源限制太小 | 调高 docker-compose 内存限制 |

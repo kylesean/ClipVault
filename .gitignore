@@ -48,4 +48,3 @@ __pycache__/
 backend/cookies/*.txt
 .env
 
-# Third-party: backend/douyin_api/ managed as git submodule

@@ -29,8 +29,8 @@
 ## 快速开始
 
 ```bash
-# 克隆（含子模块）
-git clone --recurse-submodules https://github.com/kylesean/ClipVault.git
+# 克隆
+git clone https://github.com/kylesean/ClipVault.git
 cd ClipVault
 
 # 一键初始化环境
@@ -60,7 +60,7 @@ make update-douyin  # 同步上游解析引擎更新
 │   └── shared/           # 共享服务（数据库/网络/下载）
 ├── backend/              # 解析后端
 │   ├── app/              # FastAPI 主服务（路由/服务/模型）
-│   └── douyin_api/       # 抖音解析引擎（Git Submodule）
+│   │   └── douyin_core/  # 抖音核心算法（内嵌迁移，Apache-2.0）
 ├── .github/workflows/    # CI 自动构建
 ├── docker-compose.yml    # 后端编排
 └── Makefile              # 常用命令入口

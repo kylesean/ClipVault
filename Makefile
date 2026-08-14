@@ -1,17 +1,13 @@
 # ClipVault 项目管理命令
-.PHONY: dev stop build apk deploy update-douyin setup
+.PHONY: dev stop build apk setup update-douyin-core
 
 # 可通过环境变量覆盖，默认 8000
 PORT ?= 8000
-DOUYIN_PORT ?= 8080
 
 # ===== 本地开发 =====
 
-## 启动后端服务（开发模式）
+## 启动后端服务（开发模式，抖音核心算法已内嵌，单进程即可）
 dev:
-	@echo "启动抖音解析服务 (port $(DOUYIN_PORT))..."
-	cd backend/douyin_api && .venv/bin/python -m uvicorn app.main:app --host 0.0.0.0 --port $(DOUYIN_PORT) &
-	@echo "启动主解析服务 (port $(PORT))..."
 	cd backend && CLIPVAULT_PORT=$(PORT) uv run uvicorn app.main:app --host 0.0.0.0 --port $(PORT) --reload
 
 ## 停止所有后端服务
@@ -20,12 +16,8 @@ stop:
 
 ## 初始化环境（新机器首次运行）
 setup:
-	@echo "=== 初始化 Git Submodule ==="
-	git submodule update --init --recursive
 	@echo "=== 安装主服务依赖 ==="
 	cd backend && uv venv && uv pip install -r requirements.txt
-	@echo "=== 安装抖音解析服务依赖 ==="
-	cd backend/douyin_api && uv venv --python 3.11 .venv && uv pip install --python .venv/bin/python -r requirements.txt
 	@echo "=== 安装 Flutter 依赖 ==="
 	flutter pub get
 	@echo "✅ 环境初始化完成"
@@ -60,10 +52,9 @@ down:
 
 # ===== 维护 =====
 
-## 更新抖音解析引擎（拉取上游最新代码）
-update-douyin:
-	cd backend/douyin_api && git pull origin main
-	@echo "✅ 已更新，记得重启服务: make stop && make dev"
+## 同步抖音核心算法（拉取上游 abogus.py 等文件，抖音改版后执行）
+update-douyin-core:
+	python3 scripts/sync_douyin_core.py
 
 ## 更新 Flutter 依赖
 upgrade:

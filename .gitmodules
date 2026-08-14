@@ -1,3 +1,0 @@
-[submodule "backend/douyin_api"]
-	path = backend/douyin_api
-	url = https://github.com/Evil0ctal/Douyin_TikTok_Download_API.git

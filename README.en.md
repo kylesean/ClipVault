@@ -29,7 +29,7 @@ Requests hit the primary engine first; on failure, they silently fall back to yt
 ## Quick Start
 
 ```bash
-git clone --recurse-submodules https://github.com/kylesean/ClipVault.git
+git clone https://github.com/kylesean/ClipVault.git
 cd ClipVault
 
 make setup    # Initialize environment
@@ -54,7 +54,7 @@ make update-douyin  # Sync upstream parse engine
 │   └── shared/           # Shared services (database/network/download)
 ├── backend/              # Parse backend
 │   ├── app/              # FastAPI service (routers/services/models)
-│   └── douyin_api/       # Douyin parse engine (Git Submodule)
+│   └── douyin_core/     # Douyin core algorithm (vendored, Apache-2.0)
 ├── .github/workflows/    # CI builds
 ├── docker-compose.yml    # Backend orchestration
 └── Makefile              # Common commands

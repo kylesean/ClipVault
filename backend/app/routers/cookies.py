@@ -124,8 +124,7 @@ async def refresh_cookie(platform: str, body: CookieRefreshRequest | None = None
     if body and body.cookie and body.cookie.strip():
         try:
             path = save_browser_cookie_string(platform, body.cookie.strip())
-            # 同时注入到 douyin_api 服务
-            await _inject_cookie_to_service(platform, body.cookie.strip())
+            # 保存到 backend/cookies/ 后，抖音核心与 yt-dlp 会实时读取
             return {
                 "message": f"平台 {platform} Cookie 已直接保存",
                 "path": str(path),
@@ -159,14 +158,3 @@ async def refresh_cookie(platform: str, body: CookieRefreshRequest | None = None
             f"例如: {{\"cookie\": \"your_cookie_string\"}}"
         ),
     )
-
-
-async def _inject_cookie_to_service(platform: str, cookie_str: str) -> None:
-    """将 Cookie 注入到 douyin_api 解析服务（best-effort）"""
-    if platform != "douyin":
-        return
-    try:
-        from app.services.cookie_refresh_service import update_service_cookie
-        await update_service_cookie(cookie_str)
-    except Exception as e:
-        logger.warning("Cookie 注入解析服务失败（不影响保存）: %s", e)
