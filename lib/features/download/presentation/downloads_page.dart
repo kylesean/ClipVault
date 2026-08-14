@@ -30,14 +30,17 @@ class DownloadsPage extends ConsumerWidget {
               child: Column(
                 mainAxisSize: MainAxisSize.min,
                 children: [
-                  Icon(Icons.download_done_rounded,
-                      size: 64, color: Theme.of(context).colorScheme.outline),
+                  Icon(
+                    Icons.download_done_rounded,
+                    size: 64,
+                    color: Theme.of(context).colorScheme.outline,
+                  ),
                   const SizedBox(height: 16),
                   Text(
                     '暂无下载任务',
                     style: Theme.of(context).textTheme.bodyLarge?.copyWith(
-                          color: Theme.of(context).colorScheme.outline,
-                        ),
+                      color: Theme.of(context).colorScheme.outline,
+                    ),
                   ),
                 ],
               ),
@@ -53,7 +56,11 @@ class DownloadsPage extends ConsumerWidget {
     );
   }
 
-  Widget _buildTaskCard(BuildContext context, WidgetRef ref, DownloadTask task) {
+  Widget _buildTaskCard(
+    BuildContext context,
+    WidgetRef ref,
+    DownloadTask task,
+  ) {
     final controller = ref.read(downloadControllerProvider.notifier);
 
     return Card(
@@ -79,6 +86,14 @@ class DownloadsPage extends ConsumerWidget {
                     style: Theme.of(context).textTheme.titleSmall,
                   ),
                 ),
+                if (task.status == DownloadStatus.failed ||
+                    task.status == DownloadStatus.paused)
+                  IconButton(
+                    icon: const Icon(Icons.refresh_rounded, size: 20),
+                    tooltip: '重试',
+                    onPressed: () => controller.retryTask(task.id),
+                    visualDensity: VisualDensity.compact,
+                  ),
                 IconButton(
                   icon: const Icon(Icons.close_rounded, size: 20),
                   onPressed: () => controller.removeTask(task.id),

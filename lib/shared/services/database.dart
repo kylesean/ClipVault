@@ -68,15 +68,18 @@ class DownloadTasks extends Table {
 class AppDatabase extends _$AppDatabase {
   AppDatabase() : super(_openConnection());
 
+  /// 测试用：注入自定义查询执行器（如内存数据库）
+  AppDatabase.forTesting(super.e);
+
   @override
   int get schemaVersion => 1;
 
   // ===== Video CRUD =====
 
   Stream<List<Video>> watchAllVideos() {
-    return (select(videos)
-          ..orderBy([(t) => OrderingTerm.desc(t.downloadedAt)]))
-        .watch();
+    return (select(
+      videos,
+    )..orderBy([(t) => OrderingTerm.desc(t.downloadedAt)])).watch();
   }
 
   Stream<List<Video>> watchVideosByPlatform(String platform) {
@@ -87,11 +90,12 @@ class AppDatabase extends _$AppDatabase {
   }
 
   Stream<List<Video>> watchVideosByGroup(String groupId) {
-    final query = select(videos).join([
-      innerJoin(videoGroups, videoGroups.videoId.equalsExp(videos.id)),
-    ])
-      ..where(videoGroups.groupId.equals(groupId))
-      ..orderBy([OrderingTerm.desc(videos.downloadedAt)]);
+    final query =
+        select(videos).join([
+            innerJoin(videoGroups, videoGroups.videoId.equalsExp(videos.id)),
+          ])
+          ..where(videoGroups.groupId.equals(groupId))
+          ..orderBy([OrderingTerm.desc(videos.downloadedAt)]);
 
     return query.watch().map((rows) {
       return rows.map((row) => row.readTable(videos)).toList();
@@ -100,11 +104,15 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> insertVideo(VideosCompanion video) => into(videos).insert(video);
 
-  Future<void> deleteVideo(String id) =>
-      (delete(videos)..where((t) => t.id.equals(id))).go();
+  Future<void> deleteVideo(String id) async {
+    await (delete(videoGroups)..where((t) => t.videoId.equals(id))).go();
+    await (delete(videos)..where((t) => t.id.equals(id))).go();
+  }
 
-  Future<void> deleteVideos(List<String> ids) =>
-      (delete(videos)..where((t) => t.id.isIn(ids))).go();
+  Future<void> deleteVideos(List<String> ids) async {
+    await (delete(videoGroups)..where((t) => t.videoId.isIn(ids))).go();
+    await (delete(videos)..where((t) => t.id.isIn(ids))).go();
+  }
 
   Future<Video?> getVideoById(String id) =>
       (select(videos)..where((t) => t.id.equals(id))).getSingleOrNull();
@@ -112,17 +120,16 @@ class AppDatabase extends _$AppDatabase {
   // ===== Group CRUD =====
 
   Stream<List<Group>> watchAllGroups() {
-    return (select(groups)
-          ..orderBy([(t) => OrderingTerm.asc(t.sortOrder)]))
-        .watch();
+    return (select(
+      groups,
+    )..orderBy([(t) => OrderingTerm.asc(t.sortOrder)])).watch();
   }
 
-  Future<void> insertGroup(GroupsCompanion group) =>
-      into(groups).insert(group);
+  Future<void> insertGroup(GroupsCompanion group) => into(groups).insert(group);
 
-  Future<void> updateGroupName(String id, String name) =>
-      (update(groups)..where((t) => t.id.equals(id)))
-          .write(GroupsCompanion(name: Value(name)));
+  Future<void> updateGroupName(String id, String name) => (update(
+    groups,
+  )..where((t) => t.id.equals(id))).write(GroupsCompanion(name: Value(name)));
 
   Future<void> deleteGroup(String id) async {
     await (delete(videoGroups)..where((t) => t.groupId.equals(id))).go();
@@ -133,25 +140,27 @@ class AppDatabase extends _$AppDatabase {
 
   Future<void> addVideoToGroup(String videoId, String groupId) =>
       into(videoGroups).insert(
-        VideoGroupsCompanion(
-          videoId: Value(videoId),
-          groupId: Value(groupId),
-        ),
+        VideoGroupsCompanion(videoId: Value(videoId), groupId: Value(groupId)),
         onConflict: DoNothing(),
       );
 
-  Future<void> removeVideoFromGroup(String videoId, String groupId) =>
-      (delete(videoGroups)
-            ..where((t) =>
-                t.videoId.equals(videoId) & t.groupId.equals(groupId)))
-          .go();
+  Future<void> removeVideoFromGroup(String videoId, String groupId) => (delete(
+    videoGroups,
+  )..where((t) => t.videoId.equals(videoId) & t.groupId.equals(groupId))).go();
 
   // ===== Download Task CRUD =====
 
   Stream<List<DownloadTask>> watchDownloadTasks() {
-    return (select(downloadTasks)
-          ..orderBy([(t) => OrderingTerm.desc(t.createdAt)]))
-        .watch();
+    return (select(
+      downloadTasks,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).watch();
+  }
+
+  /// 一次性读取全部下载任务（用于启动时恢复）
+  Future<List<DownloadTask>> getDownloadTasks() {
+    return (select(
+      downloadTasks,
+    )..orderBy([(t) => OrderingTerm.desc(t.createdAt)])).get();
   }
 
   Future<void> insertDownloadTask(DownloadTasksCompanion task) =>

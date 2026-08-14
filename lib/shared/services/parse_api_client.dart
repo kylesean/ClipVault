@@ -6,15 +6,18 @@ import 'package:dio/dio.dart';
 class ParseApiClient {
   final Dio _dio;
 
-  ParseApiClient({required String baseUrl})
-      : _dio = Dio(
-          BaseOptions(
-            baseUrl: baseUrl,
-            connectTimeout: const Duration(seconds: 10),
-            receiveTimeout: const Duration(seconds: 30),
-            headers: {'Content-Type': 'application/json'},
-          ),
-        );
+  ParseApiClient({required String baseUrl, String apiToken = ''})
+    : _dio = Dio(
+        BaseOptions(
+          baseUrl: baseUrl,
+          connectTimeout: const Duration(seconds: 10),
+          receiveTimeout: const Duration(seconds: 30),
+          headers: {
+            'Content-Type': 'application/json',
+            if (apiToken.isNotEmpty) 'X-API-Token': apiToken,
+          },
+        ),
+      );
 
   /// 解析视频链接
   Future<ParseResult> parseUrl(String url) async {
@@ -28,10 +31,7 @@ class ParseApiClient {
       final code = data['code'] as int? ?? -1;
 
       if (code != 0) {
-        throw ParseException(
-          data['message'] as String? ?? '解析失败',
-          url: url,
-        );
+        throw ParseException(data['message'] as String? ?? '解析失败', url: url);
       }
 
       return ParseResult.fromJson(data['data'] as Map<String, dynamic>);

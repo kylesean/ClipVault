@@ -8,27 +8,32 @@ import 'package:uuid/uuid.dart';
 import 'package:clip_vault/core/constants/app_constants.dart';
 
 /// 下载进度回调
-typedef DownloadProgressCallback = void Function(
-  int receivedBytes,
-  int totalBytes,
-  int speedBytesPerSec,
-);
+typedef DownloadProgressCallback =
+    void Function(int receivedBytes, int totalBytes, int speedBytesPerSec);
 
 /// 视频文件下载服务
 class DownloadService {
   final String _serverUrl;
 
-  final Dio _dio = Dio(BaseOptions(
-    headers: {
-      'User-Agent':
-          'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
-          '(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
-    },
-    followRedirects: true,
-  ));
+  final Dio _dio;
   final _uuid = const Uuid();
 
-  DownloadService({required String serverUrl}) : _serverUrl = serverUrl;
+  DownloadService({required String serverUrl, String apiToken = ''})
+    : _serverUrl = serverUrl,
+      _dio = Dio(
+        BaseOptions(
+          headers: {
+            'User-Agent':
+                'Mozilla/5.0 (Linux; Android 14; Pixel 8) AppleWebKit/537.36 '
+                '(KHTML, like Gecko) Chrome/126.0.0.0 Mobile Safari/537.36',
+            if (apiToken.isNotEmpty) 'X-API-Token': apiToken,
+          },
+          followRedirects: true,
+          // 防止单个挂起请求卡死整个下载队列
+          connectTimeout: const Duration(seconds: 15),
+          receiveTimeout: const Duration(seconds: 30),
+        ),
+      );
 
   /// 获取视频存储目录
   Future<Directory> getVideoDirectory() async {
@@ -65,7 +70,8 @@ class DownloadService {
     final filePath = p.join(videoDir.path, fileName);
 
     // 通过后端代理下载（后端会用正确的 headers 从 CDN 拉取）
-    final proxyUrl = '$_serverUrl/api/download-proxy'
+    final proxyUrl =
+        '$_serverUrl/api/download-proxy'
         '?url=${Uri.encodeComponent(url)}'
         '&platform=${Uri.encodeComponent(platform)}';
 
@@ -94,8 +100,11 @@ class DownloadService {
     return filePath;
   }
 
-  /// 下载缩略图
-  Future<String?> downloadThumbnail(String? url) async {
+  /// 下载缩略图（超时/失败返回 null，不阻断主流程）
+  Future<String?> downloadThumbnail(
+    String? url, {
+    CancelToken? cancelToken,
+  }) async {
     if (url == null || url.isEmpty) return null;
 
     try {
@@ -103,7 +112,9 @@ class DownloadService {
       final fileName = '${_uuid.v4()}${AppConstants.thumbnailExtension}';
       final filePath = p.join(thumbDir.path, fileName);
 
-      await _dio.download(url, filePath);
+      await _dio
+          .download(url, filePath, cancelToken: cancelToken)
+          .timeout(const Duration(seconds: 15));
       return filePath;
     } catch (_) {
       return null;
@@ -128,9 +139,7 @@ class DownloadService {
   }
 
   String _generateFileName(String title) {
-    final sanitized = title
-        .replaceAll(RegExp(r'[\\/:*?"<>|]'), '_')
-        .trim();
+    final sanitized = title.replaceAll(RegExp(r'[\\/:*?"<>|]'), '_').trim();
     final shortTitle = sanitized.length > 50
         ? sanitized.substring(0, 50)
         : sanitized;

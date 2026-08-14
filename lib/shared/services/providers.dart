@@ -12,14 +12,20 @@ final databaseProvider = Provider<AppDatabase>((ref) {
   return db;
 });
 
-/// 下载服务 Provider（监听服务器地址变化）
+/// 下载服务 Provider（监听服务器地址/Token 变化）
 final downloadServiceProvider = Provider<DownloadService>((ref) {
-  final serverUrl = ref.watch(settingsControllerProvider).serverUrl;
-  return DownloadService(serverUrl: serverUrl);
+  final settings = ref.watch(settingsControllerProvider);
+  return DownloadService(
+    serverUrl: settings.serverUrl,
+    apiToken: settings.apiToken,
+  );
 });
 
-/// 解析 API 客户端 Provider（监听设置中的服务器地址，变化时自动重建）
+/// 解析 API 客户端 Provider（监听设置中的服务器地址/Token，变化时自动重建）
 final parseApiClientProvider = Provider<ParseApiClient>((ref) {
-  final serverUrl = ref.watch(settingsControllerProvider).serverUrl;
-  return ParseApiClient(baseUrl: serverUrl);
+  final settings = ref.watch(settingsControllerProvider);
+  return ParseApiClient(
+    baseUrl: settings.serverUrl,
+    apiToken: settings.apiToken,
+  );
 });

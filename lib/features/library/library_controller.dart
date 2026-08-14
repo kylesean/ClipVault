@@ -82,9 +82,11 @@ class LibraryState {
     if (filter.searchQuery.isNotEmpty) {
       final q = filter.searchQuery.toLowerCase();
       result = result
-          .where((v) =>
-              v.title.toLowerCase().contains(q) ||
-              v.author.toLowerCase().contains(q))
+          .where(
+            (v) =>
+                v.title.toLowerCase().contains(q) ||
+                v.author.toLowerCase().contains(q),
+          )
           .toList();
     }
 
@@ -115,9 +117,15 @@ class LibraryController extends Notifier<LibraryState> {
 
   void _loadVideos() {
     final db = ref.read(databaseProvider);
-    _videoSub = db.watchAllVideos().listen((videos) {
-      state = state.copyWith(videos: videos, isLoading: false);
-    });
+    _videoSub = db.watchAllVideos().listen(
+      (videos) {
+        state = state.copyWith(videos: videos, isLoading: false);
+      },
+      onError: (Object e) {
+        // 数据库读取异常时退出加载态，避免永久转圈
+        state = state.copyWith(isLoading: false);
+      },
+    );
   }
 
   void setFilter(LibraryFilter filter) {
@@ -136,7 +144,9 @@ class LibraryController extends Notifier<LibraryState> {
 
   void setPlatformFilter(String? platform) {
     if (platform == null) {
-      state = state.copyWith(filter: state.filter.copyWith(clearPlatform: true));
+      state = state.copyWith(
+        filter: state.filter.copyWith(clearPlatform: true),
+      );
     } else {
       state = state.copyWith(filter: state.filter.copyWith(platform: platform));
     }
@@ -206,6 +216,4 @@ class LibraryController extends Notifier<LibraryState> {
 
 /// 资源库控制器 Provider（现代 Notifier）
 final libraryControllerProvider =
-    NotifierProvider<LibraryController, LibraryState>(
-  LibraryController.new,
-);
+    NotifierProvider<LibraryController, LibraryState>(LibraryController.new);

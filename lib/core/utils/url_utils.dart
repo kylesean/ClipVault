@@ -2,16 +2,16 @@
 class UrlUtils {
   UrlUtils._();
 
-  /// 已知平台链接模式
-  static final _platformPatterns = <String, RegExp>{
-    'douyin': RegExp(r'(v\.douyin\.com|www\.douyin\.com|www\.iesdouyin\.com)'),
-    'tiktok': RegExp(r'(tiktok\.com|vm\.tiktok\.com|vt\.tiktok\.com)'),
-    'bilibili': RegExp(r'(bilibili\.com|b23\.tv)'),
-    'kuaishou': RegExp(r'(kuaishou\.com|v\.kuaishou\.com)'),
-    'xiaohongshu': RegExp(r'(xiaohongshu\.com|xhslink\.com)'),
-    'youtube': RegExp(r'(youtube\.com|youtu\.be)'),
-    'instagram': RegExp(r'(instagram\.com|instagr\.am)'),
-    'weibo': RegExp(r'(weibo\.com|weibo\.cn)'),
+  /// 已知平台域名（按 host 匹配，避免子串误判）
+  static const Map<String, List<String>> _platformDomains = {
+    'douyin': ['douyin.com', 'v.douyin.com', 'iesdouyin.com'],
+    'tiktok': ['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'],
+    'bilibili': ['bilibili.com', 'b23.tv'],
+    'kuaishou': ['kuaishou.com', 'v.kuaishou.com'],
+    'xiaohongshu': ['xiaohongshu.com', 'xhslink.com'],
+    'youtube': ['youtube.com', 'youtu.be'],
+    'instagram': ['instagram.com', 'instagr.am'],
+    'weibo': ['weibo.com', 'weibo.cn'],
   };
 
   /// 通用 URL 正则
@@ -20,28 +20,48 @@ class UrlUtils {
     caseSensitive: false,
   );
 
-  /// 从文本中提取 URL
+  /// 常见尾部噪声：中英文标点 + 中文汉字（分享文本常见 "链接，快去下载"）
+  /// 视频分享 URL 的路径中不会包含未编码的中文，可安全裁剪
+  static final _trailingJunk = RegExp(
+    r'''[,.;:!?()\[\]{}，。；：！？、…“”"'》」】）』「」『』〔〕\u4e00-\u9fff]+$''',
+  );
+
+  /// 从文本中提取 URL（裁剪尾部噪声）
   static String? extractUrl(String text) {
     final match = _urlRegex.firstMatch(text);
-    return match?.group(0);
+    if (match == null) return null;
+    return match.group(0)!.replaceAll(_trailingJunk, '');
   }
 
   /// 从文本中提取所有 URL
   static List<String> extractAllUrls(String text) {
-    return _urlRegex.allMatches(text).map((m) => m.group(0)!).toList();
+    return _urlRegex
+        .allMatches(text)
+        .map((m) => m.group(0)!.replaceAll(_trailingJunk, ''))
+        .toList();
+  }
+
+  static String? _hostOf(String text) {
+    final uri = Uri.tryParse(text);
+    if (uri == null || uri.host.isEmpty) return null;
+    return uri.host.toLowerCase();
   }
 
   /// 判断是否为有效视频链接
   static bool isValidVideoUrl(String text) {
-    final url = extractUrl(text);
-    if (url == null) return false;
-    return _platformPatterns.values.any((p) => p.hasMatch(url));
+    return detectPlatform(text) != null;
   }
 
-  /// 识别链接所属平台
-  static String? detectPlatform(String url) {
-    for (final entry in _platformPatterns.entries) {
-      if (entry.value.hasMatch(url)) return entry.key;
+  /// 识别链接所属平台（按 host 精确匹配域名或子域）
+  static String? detectPlatform(String text) {
+    final host = _hostOf(text);
+    if (host == null) return null;
+    for (final entry in _platformDomains.entries) {
+      for (final domain in entry.value) {
+        if (host == domain || host.endsWith('.$domain')) {
+          return entry.key;
+        }
+      }
     }
     return null;
   }

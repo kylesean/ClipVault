@@ -2,15 +2,32 @@ import 'package:clip_vault/app.dart';
 import 'package:clip_vault/core/theme/app_theme.dart';
 import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:clip_vault/features/settings/presentation/settings_page.dart';
+import 'package:clip_vault/shared/services/notification_service.dart';
 import 'package:clip_vault/shared/services/share_intent_service.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:media_kit/media_kit.dart';
 
-void main() {
+Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
   MediaKit.ensureInitialized();
-  runApp(const ProviderScope(child: ClipVaultApp()));
+
+  // 预加载持久化设置，避免启动时读取到默认值/竞态覆盖
+  final initialSettings = await SettingsState.load();
+
+  // 初始化本地通知
+  final notificationService = NotificationService();
+  await notificationService.init();
+
+  runApp(
+    ProviderScope(
+      overrides: [
+        initialSettingsProvider.overrideWithValue(initialSettings),
+        notificationServiceProvider.overrideWithValue(notificationService),
+      ],
+      child: const ClipVaultApp(),
+    ),
+  );
 }
 
 class ClipVaultApp extends ConsumerStatefulWidget {

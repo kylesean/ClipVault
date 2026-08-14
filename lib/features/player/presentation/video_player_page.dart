@@ -1,3 +1,6 @@
+import 'dart:async';
+import 'dart:io';
+
 import 'package:clip_vault/core/utils/format_utils.dart';
 import 'package:clip_vault/core/utils/url_utils.dart';
 import 'package:clip_vault/shared/services/database.dart';
@@ -23,19 +26,27 @@ class VideoPlayerPage extends ConsumerStatefulWidget {
 class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
   late final Player _player;
   late final mk.VideoController _videoController;
+  StreamSubscription<dynamic>? _errorSub;
   Video? _video;
   bool _isLoading = true;
+  String? _playbackError;
 
   @override
   void initState() {
     super.initState();
     _player = Player();
     _videoController = mk.VideoController(_player);
+    // 监听播放器错误（文件损坏/缺失等）
+    _errorSub = _player.stream.error.listen((error) {
+      if (!mounted) return;
+      setState(() => _playbackError = '视频播放失败: $error');
+    });
     _loadVideo();
   }
 
   @override
   void dispose() {
+    _errorSub?.cancel();
     _player.dispose();
     super.dispose();
   }
@@ -43,14 +54,18 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
   Future<void> _loadVideo() async {
     final db = ref.read(databaseProvider);
     final video = await db.getVideoById(widget.videoId);
-    if (mounted) {
-      setState(() {
-        _video = video;
-        _isLoading = false;
-      });
-      if (video != null) {
-        _player.open(Media(video.localPath));
+    if (!mounted) return;
+    setState(() {
+      _video = video;
+      _isLoading = false;
+    });
+    if (video != null) {
+      final file = File(video.localPath);
+      if (!await file.exists()) {
+        setState(() => _playbackError = '视频文件不存在或已被删除');
+        return;
       }
+      unawaited(_player.open(Media(video.localPath)));
     }
   }
 
@@ -58,21 +73,30 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
     if (_video == null) return;
 
     try {
-      await Gal.putVideo(
-        _video!.localPath,
-        album: 'ClipVault',
-      );
+      // Android 10 以下需要运行时权限
+      if (!await Gal.hasAccess(toAlbum: true)) {
+        final granted = await Gal.requestAccess(toAlbum: true);
+        if (!granted) {
+          if (mounted) {
+            ScaffoldMessenger.of(
+              context,
+            ).showSnackBar(const SnackBar(content: Text('未获得相册权限，无法保存')));
+          }
+          return;
+        }
+      }
+      await Gal.putVideo(_video!.localPath, album: 'ClipVault');
 
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('已保存到相册')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(const SnackBar(content: Text('已保存到相册')));
       }
     } catch (e) {
       if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('保存失败: $e')),
-        );
+        ScaffoldMessenger.of(
+          context,
+        ).showSnackBar(SnackBar(content: Text('保存失败: $e')));
       }
     }
   }
@@ -143,9 +167,9 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
                   Share.share(_video!.originalUrl);
                 case 'copy':
                   Clipboard.setData(ClipboardData(text: _video!.originalUrl));
-                  ScaffoldMessenger.of(context).showSnackBar(
-                    const SnackBar(content: Text('链接已复制')),
-                  );
+                  ScaffoldMessenger.of(
+                    context,
+                  ).showSnackBar(const SnackBar(content: Text('链接已复制')));
                 case 'delete':
                   _deleteVideo();
               }
@@ -197,6 +221,29 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
               child: mk.Video(controller: _videoController),
             ),
 
+            // 播放错误提示
+            if (_playbackError != null)
+              Padding(
+                padding: const EdgeInsets.all(16),
+                child: Row(
+                  children: [
+                    Icon(
+                      Icons.error_outline_rounded,
+                      color: Theme.of(context).colorScheme.error,
+                    ),
+                    const SizedBox(width: 8),
+                    Expanded(
+                      child: Text(
+                        _playbackError!,
+                        style: TextStyle(
+                          color: Theme.of(context).colorScheme.error,
+                        ),
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+
             // 视频信息
             Padding(
               padding: const EdgeInsets.all(16),
@@ -242,10 +289,7 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
           Icon(icon, size: 18, color: Theme.of(context).colorScheme.outline),
           const SizedBox(width: 8),
           Expanded(
-            child: Text(
-              text,
-              style: Theme.of(context).textTheme.bodyMedium,
-            ),
+            child: Text(text, style: Theme.of(context).textTheme.bodyMedium),
           ),
         ],
       ),
