@@ -15,6 +15,8 @@ services:
       - CLIPVAULT_CORS_ORIGINS=${CLIPVAULT_CORS_ORIGINS:-*}
       - DOUYIN_API_URL=http://douyin-api:80
       - COOKIE_REFRESH_INTERVAL=${COOKIE_REFRESH_INTERVAL:-43200}
+      # 设置后所有 /api/cookies 接口与客户端请求需要 X-API-Token 请求头
+      - CLIPVAULT_API_TOKEN=${CLIPVAULT_API_TOKEN:-}
     depends_on:
       douyin-api:
         condition: service_started
@@ -25,10 +27,9 @@ services:
           cpus: "2.0"
 
   # 抖音/TikTok/B站解析引擎（Git Submodule）
+  # 注意：不对外暴露端口，仅内网（parse-service）可达，缩小攻击面
   douyin-api:
     build: ./backend/douyin_api
-    ports:
-      - "${DOUYIN_API_PORT:-8080}:80"
     restart: unless-stopped
     volumes:
       # 挂载配置文件，方便更新 Cookie 而不用重建镜像

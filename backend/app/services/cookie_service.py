@@ -79,6 +79,10 @@ def _save_cookies_netscape(cookies: list[dict], platform: str) -> Path:
         jar.set_cookie(cookie)
 
     jar.save(ignore_discard=True, ignore_expires=True)
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
     logger.info("已保存 %d 条 Cookie → %s", len(cookies), path)
     return path
 
@@ -141,6 +145,10 @@ def save_browser_cookie_string(platform: str, cookie_str: str) -> Path:
         raise ValueError("Cookie 字符串中未解析到有效的 key=value 对")
 
     jar.save(ignore_discard=True, ignore_expires=True)
+    try:
+        path.chmod(0o600)
+    except OSError:
+        pass
     logger.info("已从浏览器 Cookie 字符串保存 %d 条 Cookie → %s", count, path)
     return path
 

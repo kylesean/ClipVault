@@ -176,10 +176,21 @@ sudo certbot --nginx -d api.yourdomain.com
 | 变量 | 默认值 | 说明 |
 |------|--------|------|
 | `CLIPVAULT_PORT` | 8000 | 主服务端口 |
-| `DOUYIN_API_PORT` | 8080 | 抖音解析引擎端口 |
+| `DOUYIN_API_PORT` | 8080 | 抖音解析引擎端口（v1.1+ 不再对外暴露，仅内网可达） |
 | `DOUYIN_API_URL` | http://localhost:8080 | 主服务连接抖音引擎的地址 |
 | `COOKIE_REFRESH_INTERVAL` | 43200 | Cookie 自动刷新间隔（秒，默认12h） |
-| `CLIPVAULT_CORS_ORIGINS` | * | 允许的跨域来源 |
+| `CLIPVAULT_CORS_ORIGINS` | * | 允许的跨域来源（`*` 时不带凭证） |
+| `CLIPVAULT_API_TOKEN` | 空 | **推荐设置**。设置后所有 `/api/cookies` 接口要求 `X-API-Token` 请求头，客户端需在 App「设置 → 服务器 → API Token」填写 |
+| `CLIPVAULT_MAX_PROXY_BYTES` | 1073741824 | 单次代理下载字节上限（默认 1GB） |
+| `CLIPVAULT_MAX_CONCURRENT_STREAMS` | 8 | 代理下载并发上限 |
+| `CLIPVAULT_EXTRA_BLOCKED_CIDRS` | 空 | 额外拦截网段（逗号分隔），用于扩展 SSRF 防护 |
+
+## 安全说明（v1.1+）
+
+- `/api/download-proxy` 与 `/api/parse` 已内置 SSRF 防护：仅允许 http/https 公网目标，私网/回环/链路本地（含云元数据 169.254.169.254）地址一律拒绝，重定向逐跳复查。
+- Cookie 文件权限为 0600；上传大小上限 1MB；平台标识白名单校验。
+- 全局限流中间件已启用：`/api/parse` 20 次/分、`/api/download-proxy` 12 次/分、`/api/health` 20 次/分（按来源 IP）。
+- 建议通过 Nginx/Caddy 反代提供 HTTPS（部署指南见上）。
 
 ---
 

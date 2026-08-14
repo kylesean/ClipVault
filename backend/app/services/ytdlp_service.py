@@ -3,15 +3,23 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from functools import partial
 from pathlib import Path
+from urllib.parse import urlparse
 
 import yt_dlp
 
 from app.models.schemas import ParseData, VideoFormat
+from app.services.url_security import validate_platform
 
 logger = logging.getLogger(__name__)
 
 # 专用线程池：避免 yt-dlp 同步调用阻塞事件循环
 _executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="ytdlp")
+
+# 并发解析信号量（线程池外层再限一层，避免无界排队）
+_parse_semaphore = asyncio.Semaphore(8)
+
+# 单次解析的超时（秒）
+PARSE_TIMEOUT_SECONDS = 90
 
 # Cookie 文件目录（Netscape 格式 cookies.txt）
 COOKIES_DIR = Path(__file__).parent.parent.parent / "cookies"
@@ -54,16 +62,24 @@ def _detect_platform(extractor: str) -> str:
 
 
 def _guess_platform_from_url(url: str) -> str | None:
-    """从 URL 域名快速判断平台"""
-    url_lower = url.lower()
+    """从 URL 域名快速判断平台（按 host 匹配，避免子串误判）"""
+    try:
+        host = (urlparse(url).hostname or "").lower()
+    except ValueError:
+        return None
+    if not host:
+        return None
     for domain, platform in URL_PLATFORM_HINTS.items():
-        if domain in url_lower:
+        if host == domain or host.endswith(f".{domain}"):
             return platform
     return None
 
 
 def _get_cookie_file(platform: str) -> Path | None:
     """获取平台对应的 Cookie 文件路径（如果存在）"""
+    # 平台标识必须符合白名单，防止路径穿越读取任意文件
+    if not validate_platform(platform):
+        return None
     cookie_file = COOKIES_DIR / f"{platform}.txt"
     if cookie_file.exists():
         return cookie_file
@@ -80,7 +96,6 @@ def _build_ydl_opts(cookie_file: Path | None = None) -> dict:
         "quiet": True,
         "no_warnings": True,
         "skip_download": True,
-        "nocheckcertificate": True,
         "format": "bestvideo[ext=mp4]+bestaudio[ext=m4a]/best[ext=mp4]/best",
         "socket_timeout": 15,
         "retries": 1,
@@ -194,21 +209,30 @@ async def parse_video_url(url: str) -> ParseData:
     if platform_hint in COOKIE_REQUIRED_PLATFORMS:
         await ensure_cookies(platform_hint)
 
-    loop = asyncio.get_running_loop()
-    try:
-        return await loop.run_in_executor(
-            _executor, partial(_parse_video_url_sync, url)
-        )
-    except Exception as e:
-        # 如果是 Cookie 错误且平台已知，尝试刷新 Cookie 后重试
-        error_msg = str(e).lower()
-        if ("cookie" in error_msg or "fresh cookies" in error_msg) and platform_hint:
-            refreshed = await _try_refresh_cookies(platform_hint)
-            if refreshed:
-                return await loop.run_in_executor(
+    async with _parse_semaphore:
+        loop = asyncio.get_running_loop()
+        try:
+            return await asyncio.wait_for(
+                loop.run_in_executor(
                     _executor, partial(_parse_video_url_sync, url)
-                )
-        raise
+                ),
+                timeout=PARSE_TIMEOUT_SECONDS,
+            )
+        except asyncio.TimeoutError as e:
+            raise TimeoutError("解析超时") from e
+        except Exception as e:
+            # 如果是 Cookie 错误且平台已知，尝试刷新 Cookie 后重试
+            error_msg = str(e).lower()
+            if ("cookie" in error_msg or "fresh cookies" in error_msg) and platform_hint:
+                refreshed = await _try_refresh_cookies(platform_hint)
+                if refreshed:
+                    return await asyncio.wait_for(
+                        loop.run_in_executor(
+                            _executor, partial(_parse_video_url_sync, url)
+                        ),
+                        timeout=PARSE_TIMEOUT_SECONDS,
+                    )
+            raise
 
 
 async def _try_refresh_cookies(platform: str) -> bool:

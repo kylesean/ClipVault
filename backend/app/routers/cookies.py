@@ -3,27 +3,45 @@
 import logging
 from pathlib import Path
 
-from fastapi import APIRouter, HTTPException, UploadFile
+from fastapi import APIRouter, Depends, HTTPException, UploadFile
 from fastapi.responses import PlainTextResponse
 
 from app.models.schemas import CookieRefreshRequest
+from app.services.auth import require_token
 from app.services.cookie_service import (
     PLATFORM_URLS,
-    ensure_cookies,
     generate_cookies,
     save_browser_cookie_string,
 )
+from app.services.url_security import validate_platform
 from app.services.ytdlp_service import COOKIES_DIR
 
 logger = logging.getLogger(__name__)
 
-router = APIRouter(prefix="/api/cookies", tags=["cookies"])
+router = APIRouter(
+    prefix="/api/cookies",
+    tags=["cookies"],
+    # 全部接口要求认证（启用 CLIPVAULT_API_TOKEN 时生效）
+    dependencies=[Depends(require_token)],
+)
 
 # 允许的平台白名单
 ALLOWED_PLATFORMS = {
     "douyin", "bilibili", "kuaishou",
     "xiaohongshu", "youtube", "weibo", "default",
 }
+
+# 上传文件大小上限（1MB）
+MAX_UPLOAD_BYTES = 1024 * 1024
+
+
+def _validate_platform(platform: str) -> None:
+    """平台白名单校验（上传/查看/删除共用）"""
+    if platform not in ALLOWED_PLATFORMS or not validate_platform(platform):
+        raise HTTPException(
+            status_code=400,
+            detail=f"不支持的平台: {platform}，允许: {sorted(ALLOWED_PLATFORMS)}",
+        )
 
 
 @router.get("")
@@ -44,19 +62,21 @@ async def upload_cookie(platform: str, file: UploadFile):
       2. 访问对应平台网站（如 douyin.com）
       3. 导出 cookies.txt 并上传
     """
-    if platform not in ALLOWED_PLATFORMS:
-        raise HTTPException(
-            status_code=400,
-            detail=f"不支持的平台: {platform}，允许: {sorted(ALLOWED_PLATFORMS)}",
-        )
+    _validate_platform(platform)
 
-    content = await file.read()
+    content = await file.read(MAX_UPLOAD_BYTES + 1)
     if not content:
         raise HTTPException(status_code=400, detail="文件内容为空")
+    if len(content) > MAX_UPLOAD_BYTES:
+        raise HTTPException(status_code=413, detail="Cookie 文件过大（上限 1MB）")
 
     COOKIES_DIR.mkdir(parents=True, exist_ok=True)
     target = COOKIES_DIR / f"{platform}.txt"
     target.write_bytes(content)
+    try:
+        target.chmod(0o600)
+    except OSError:
+        pass
 
     return {"message": f"平台 {platform} Cookie 已更新", "size": len(content)}
 
@@ -64,6 +84,7 @@ async def upload_cookie(platform: str, file: UploadFile):
 @router.delete("/{platform}")
 async def delete_cookie(platform: str):
     """删除指定平台的 Cookie"""
+    _validate_platform(platform)
     target = COOKIES_DIR / f"{platform}.txt"
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"平台 {platform} 无 Cookie 文件")
@@ -74,7 +95,8 @@ async def delete_cookie(platform: str):
 
 @router.get("/{platform}", response_class=PlainTextResponse)
 async def get_cookie(platform: str):
-    """查看指定平台的 Cookie 内容（调试用）"""
+    """查看指定平台的 Cookie 内容（调试用，需认证）"""
+    _validate_platform(platform)
     target = COOKIES_DIR / f"{platform}.txt"
     if not target.exists():
         raise HTTPException(status_code=404, detail=f"平台 {platform} 无 Cookie 文件")
@@ -110,10 +132,7 @@ async def refresh_cookie(platform: str, body: CookieRefreshRequest | None = None
             }
         except Exception as e:
             logger.error("直接保存 Cookie 失败: %s", e)
-            raise HTTPException(
-                status_code=500,
-                detail=f"Cookie 保存失败: {e}",
-            )
+            raise HTTPException(status_code=500, detail="Cookie 保存失败，请检查格式")
 
     # 方式 1：纯 API（服务器友好）
     try:
