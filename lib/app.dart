@@ -1,11 +1,10 @@
-import 'package:flutter/material.dart';
-import 'package:go_router/go_router.dart';
-
+import 'package:clip_vault/features/download/presentation/downloads_page.dart';
 import 'package:clip_vault/features/home/presentation/home_page.dart';
 import 'package:clip_vault/features/library/presentation/library_page.dart';
-import 'package:clip_vault/features/settings/presentation/settings_page.dart';
-import 'package:clip_vault/features/download/presentation/downloads_page.dart';
 import 'package:clip_vault/features/player/presentation/video_player_page.dart';
+import 'package:clip_vault/features/settings/presentation/settings_page.dart';
+import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 
 /// 底部导航 Shell
 class AppShell extends StatelessWidget {

@@ -8,8 +8,8 @@ import 'package:clip_vault/shared/services/providers.dart';
 import 'package:clip_vault/shared/services/share_intent_service.dart';
 import 'package:drift/native.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 class _StubDownloadService extends DownloadService {
   _StubDownloadService() : super();

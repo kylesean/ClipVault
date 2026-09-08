@@ -1,13 +1,12 @@
 import 'dart:io';
 
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:go_router/go_router.dart';
-
 import 'package:clip_vault/core/utils/format_utils.dart';
 import 'package:clip_vault/core/utils/url_utils.dart';
 import 'package:clip_vault/features/library/library_controller.dart';
 import 'package:clip_vault/shared/services/database.dart';
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:go_router/go_router.dart';
 
 /// 资源库页面 - 视频管理
 class LibraryPage extends ConsumerWidget {

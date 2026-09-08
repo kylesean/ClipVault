@@ -1,7 +1,7 @@
 import 'dart:async';
 
-import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:clip_vault/features/download/domain/download_task.dart';
+import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:clip_vault/features/settings/presentation/settings_page.dart';
 import 'package:clip_vault/shared/models/parse_result.dart';
 import 'package:clip_vault/shared/services/database.dart';
@@ -10,8 +10,8 @@ import 'package:clip_vault/shared/services/notification_service.dart';
 import 'package:clip_vault/shared/services/providers.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/native.dart';
-import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:flutter_test/flutter_test.dart';
 
 /// 可编程的假下载服务
 class FakeDownloadService extends DownloadService {
@@ -47,7 +47,7 @@ class FakeDownloadService extends DownloadService {
   }
 
   @override
-  Future<int> getFileSize(String path) async => 1024;
+  int getFileSize(String path) => 1024;
 
   @override
   Future<void> deleteFile(String path) async {
@@ -72,7 +72,7 @@ void main() {
   late ProviderContainer container;
 
   ProviderContainer buildContainer() {
-    final settings = const SettingsState(maxConcurrentDownloads: 1);
+    const settings = SettingsState(maxConcurrentDownloads: 1);
     return ProviderContainer(
       overrides: [
         databaseProvider.overrideWithValue(db),

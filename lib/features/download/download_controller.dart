@@ -1,13 +1,6 @@
 import 'dart:async';
 import 'dart:collection';
 
-import 'package:collection/collection.dart';
-import 'package:dio/dio.dart';
-import 'package:drift/drift.dart' as drift;
-import 'package:flutter/foundation.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:clip_vault/features/download/domain/download_task.dart';
 import 'package:clip_vault/features/settings/presentation/settings_page.dart';
 import 'package:clip_vault/shared/models/parse_result.dart';
@@ -15,6 +8,12 @@ import 'package:clip_vault/shared/services/database.dart'
     hide DownloadTask, DownloadTasks;
 import 'package:clip_vault/shared/services/notification_service.dart';
 import 'package:clip_vault/shared/services/providers.dart';
+import 'package:collection/collection.dart';
+import 'package:dio/dio.dart';
+import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:uuid/uuid.dart';
 
 /// 下载队列状态
 class DownloadQueueState {
@@ -295,7 +294,7 @@ class DownloadController extends Notifier<DownloadQueueState> {
       } catch (_) {
         thumbnailPath = null;
       }
-      final fileSize = await downloadService.getFileSize(localPath);
+      final fileSize = downloadService.getFileSize(localPath);
 
       // 任务可能已被用户移除：清理文件，不入库
       if (!state.tasks.any((t) => t.id == task.id)) {

@@ -2,8 +2,8 @@ import 'dart:io';
 
 import 'package:clip_vault/core/utils/format_utils.dart';
 import 'package:clip_vault/core/utils/url_utils.dart';
-import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:clip_vault/features/download/domain/download_task.dart';
+import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:clip_vault/features/library/library_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter/services.dart';

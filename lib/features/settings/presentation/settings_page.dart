@@ -1,10 +1,9 @@
-import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-
 import 'package:clip_vault/core/constants/app_constants.dart';
 import 'package:clip_vault/features/decode/douyin_api.dart'
     show normalizeCookie;
+import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:shared_preferences/shared_preferences.dart';
 
 const _keyClipboard = 'settings_clipboard_monitor';
 const _keyMaxDownloads = 'settings_max_concurrent_downloads';
@@ -208,7 +207,7 @@ class SettingsPage extends ConsumerWidget {
 
           // 关于
           _buildSectionHeader(context, '关于'),
-          const ListTile(title: Text('版本'), subtitle: Text('ClipVault v2.0.0')),
+          const ListTile(title: Text('版本'), subtitle: Text('ClipVault v2.0.1')),
           const ListTile(
             title: Text('解析引擎'),
             subtitle: Text('A-Bogus 本地签名（抖音 / TikTok，无需服务端）'),

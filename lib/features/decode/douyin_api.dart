@@ -9,12 +9,11 @@
 import 'dart:convert';
 import 'dart:math';
 
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-
 import 'package:clip_vault/core/errors/app_exceptions.dart';
 import 'package:clip_vault/features/decode/abogus.dart';
 import 'package:clip_vault/shared/models/parse_result.dart';
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
 
 // ---------------------------------------------------------------------------
 // 常量

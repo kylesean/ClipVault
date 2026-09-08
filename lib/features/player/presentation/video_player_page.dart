@@ -61,7 +61,7 @@ class _VideoPlayerPageState extends ConsumerState<VideoPlayerPage> {
     });
     if (video != null) {
       final file = File(video.localPath);
-      if (!await file.exists()) {
+      if (!file.existsSync()) {
         setState(() => _playbackError = '视频文件不存在或已被删除');
         return;
       }

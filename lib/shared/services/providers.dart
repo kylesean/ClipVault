@@ -1,9 +1,8 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:clip_vault/features/settings/presentation/settings_page.dart';
 import 'package:clip_vault/shared/services/database.dart';
 import 'package:clip_vault/shared/services/download_service.dart';
 import 'package:clip_vault/shared/services/parse_api_client.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 数据库 Provider
 final databaseProvider = Provider<AppDatabase>((ref) {

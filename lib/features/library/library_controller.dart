@@ -1,9 +1,8 @@
 import 'dart:async';
 
-import 'package:flutter_riverpod/flutter_riverpod.dart';
-
 import 'package:clip_vault/shared/services/database.dart';
 import 'package:clip_vault/shared/services/providers.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 资源库筛选条件
 enum LibrarySort { time, size, platform }

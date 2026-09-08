@@ -23,7 +23,7 @@ void main() {
     });
 
     test('有余数：余数归最后一段，总长守恒', () {
-      final total = 20 * 1024 * 1024 + 123;
+      const total = 20 * 1024 * 1024 + 123;
       final segs = splitSegments(total);
       expect(segs.length, greaterThanOrEqualTo(2));
       var covered = 0;
@@ -54,7 +54,7 @@ void main() {
 
   group('mergeParts', () {
     test('按序合并且删除分片', () async {
-      final dir = await Directory.systemTemp.createTemp('clipvault_merge');
+      final dir = Directory.systemTemp.createTempSync('clipvault_merge');
       try {
         final rand = Random(42);
         final expected = <int>[];
@@ -76,7 +76,7 @@ void main() {
         final merged = await File(target).readAsBytes();
         expect(merged, expected);
         for (final p in parts) {
-          expect(await File(p).exists(), isFalse);
+          expect(File(p).existsSync(), isFalse);
         }
       } finally {
         await dir.delete(recursive: true);

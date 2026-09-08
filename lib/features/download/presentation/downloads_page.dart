@@ -1,9 +1,8 @@
+import 'package:clip_vault/core/utils/format_utils.dart';
+import 'package:clip_vault/features/download/domain/download_task.dart';
+import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
-
-import 'package:clip_vault/core/utils/format_utils.dart';
-import 'package:clip_vault/features/download/download_controller.dart';
-import 'package:clip_vault/features/download/domain/download_task.dart';
 
 /// 下载队列页面
 class DownloadsPage extends ConsumerWidget {

@@ -1,11 +1,5 @@
 import 'dart:io';
 
-import 'package:dio/dio.dart';
-import 'package:flutter/foundation.dart';
-import 'package:path/path.dart' as p;
-import 'package:path_provider/path_provider.dart';
-import 'package:uuid/uuid.dart';
-
 import 'package:clip_vault/core/constants/app_constants.dart';
 import 'package:clip_vault/core/errors/app_exceptions.dart';
 import 'package:clip_vault/features/decode/douyin_api.dart'
@@ -15,6 +9,11 @@ import 'package:clip_vault/features/decode/douyin_api.dart'
         kDouyinUserAgent,
         kTikTokReferer,
         kTikTokUserAgent;
+import 'package:dio/dio.dart';
+import 'package:flutter/foundation.dart';
+import 'package:path/path.dart' as p;
+import 'package:path_provider/path_provider.dart';
+import 'package:uuid/uuid.dart';
 
 /// 下载进度回调
 typedef DownloadProgressCallback =
@@ -65,7 +64,7 @@ class DownloadService {
   final _uuid = const Uuid();
 
   DownloadService({String? cookie})
-    : _cookie = cookie,
+    : _cookie = cookie, // ignore: prefer_initializing_formals – 私有命名形参无法跨库传递，保留初始化列表
       _dio = Dio(
         BaseOptions(
           followRedirects: true,
@@ -95,8 +94,8 @@ class DownloadService {
   Future<Directory> getVideoDirectory() async {
     final dir = await getApplicationDocumentsDirectory();
     final videoDir = Directory(p.join(dir.path, 'videos'));
-    if (!await videoDir.exists()) {
-      await videoDir.create(recursive: true);
+    if (!videoDir.existsSync()) {
+      videoDir.createSync(recursive: true);
     }
     return videoDir;
   }
@@ -105,8 +104,8 @@ class DownloadService {
   Future<Directory> getThumbnailDirectory() async {
     final dir = await getApplicationDocumentsDirectory();
     final thumbDir = Directory(p.join(dir.path, 'thumbnails'));
-    if (!await thumbDir.exists()) {
-      await thumbDir.create(recursive: true);
+    if (!thumbDir.existsSync()) {
+      thumbDir.createSync(recursive: true);
     }
     return thumbDir;
   }
@@ -295,7 +294,7 @@ class DownloadService {
       for (var i = 0; i < segments.length; i++) {
         final file = File(partPaths[i]);
         final expectLen = segments[i].end - segments[i].start + 1;
-        if (!await file.exists() || await file.length() != expectLen) {
+        if (!file.existsSync() || file.lengthSync() != expectLen) {
           throw DownloadException('分片 $i 长度不符（CDN 可能不支持分段）');
         }
       }
@@ -364,16 +363,16 @@ class DownloadService {
   /// 删除本地文件
   Future<void> deleteFile(String path) async {
     final file = File(path);
-    if (await file.exists()) {
-      await file.delete();
+    if (file.existsSync()) {
+      file.deleteSync();
     }
   }
 
-  /// 获取文件大小
-  Future<int> getFileSize(String path) async {
+  /// 获取文件大小（同步 stat，小开销）
+  int getFileSize(String path) {
     final file = File(path);
-    if (await file.exists()) {
-      return await file.length();
+    if (file.existsSync()) {
+      return file.lengthSync();
     }
     return 0;
   }
