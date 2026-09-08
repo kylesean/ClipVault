@@ -1,62 +1,51 @@
-import 'package:clip_vault/core/errors/app_exceptions.dart';
-import 'package:clip_vault/shared/models/parse_result.dart';
+// 纯端解析客户端：替代原来的后端 `/api/parse` 调用。
+//
+// 接口与旧版保持一致（`parseUrl`），`DownloadController` 无需改动。
+// 仅支持抖音 / TikTok；其他平台链接直接抛 [ParseException] 明示。
 import 'package:dio/dio.dart';
 
-/// 后端解析服务 API 客户端
+import 'package:clip_vault/core/errors/app_exceptions.dart';
+import 'package:clip_vault/core/utils/url_utils.dart';
+import 'package:clip_vault/features/decode/douyin_api.dart';
+import 'package:clip_vault/shared/models/parse_result.dart';
+
+/// 本地解析客户端（无服务端）。
 class ParseApiClient {
-  final Dio _dio;
+  final Dio? _dio;
+  final String? _cookie;
 
-  ParseApiClient({required String baseUrl, String apiToken = ''})
-    : _dio = Dio(
-        BaseOptions(
-          baseUrl: baseUrl,
-          connectTimeout: const Duration(seconds: 10),
-          receiveTimeout: const Duration(seconds: 30),
-          headers: {
-            'Content-Type': 'application/json',
-            if (apiToken.isNotEmpty) 'X-API-Token': apiToken,
-          },
-        ),
-      );
+  /// [dio] 注入用于测试；[cookie] 用户粘贴的 Cookie，
+  /// 显著提升抖音成功率。
+  const ParseApiClient({Dio? dio, String? cookie})
+    : _dio = dio,
+      _cookie = cookie;
 
-  /// 解析视频链接
+  /// 解析视频链接（抖音 / TikTok）。
   Future<ParseResult> parseUrl(String url) async {
+    final link = UrlUtils.extractUrl(url)?.trim() ?? '';
+    if (link.isEmpty) {
+      throw const ParseException('链接不能为空');
+    }
+    final platform = UrlUtils.detectPlatform(link);
+    if (platform == null) {
+      throw ParseException('暂仅支持抖音 / TikTok 链接', url: url);
+    }
     try {
-      final response = await _dio.post<Map<String, dynamic>>(
-        '/api/parse',
-        data: {'url': url},
-      );
-
-      final data = response.data as Map<String, dynamic>;
-      final code = data['code'] as int? ?? -1;
-
-      if (code != 0) {
-        throw ParseException(data['message'] as String? ?? '解析失败', url: url);
+      switch (platform) {
+        case 'douyin':
+          return await fetchDouyin(link, dio: _dio, cookie: _cookie);
+        case 'tiktok':
+          return await fetchTikTok(link, dio: _dio, cookie: _cookie);
+        default:
+          throw ParseException('暂仅支持抖音 / TikTok 链接', url: url);
       }
-
-      return ParseResult.fromJson(data['data'] as Map<String, dynamic>);
-    } on DioException catch (e) {
-      if (e.type == DioExceptionType.connectionTimeout ||
-          e.type == DioExceptionType.receiveTimeout) {
-        throw const NetworkException('解析超时，请重试');
-      }
-      if (e.type == DioExceptionType.connectionError) {
-        throw const NetworkException('无法连接解析服务，请检查网络');
-      }
-      throw NetworkException(
-        '网络错误: ${e.message}',
-        statusCode: e.response?.statusCode,
-      );
+    } on AppException {
+      rethrow;
+    } catch (e) {
+      throw ParseException('解析失败，请稍后重试（$e）', url: url);
     }
   }
 
-  /// 健康检查
-  Future<bool> healthCheck() async {
-    try {
-      final response = await _dio.get<Map<String, dynamic>>('/api/health');
-      return response.statusCode == 200;
-    } catch (_) {
-      return false;
-    }
-  }
+  /// 兼容旧接口：纯端模式永远可用。
+  Future<bool> healthCheck() async => true;
 }

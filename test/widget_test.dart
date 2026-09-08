@@ -12,7 +12,7 @@ import 'package:flutter_test/flutter_test.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 class _StubDownloadService extends DownloadService {
-  _StubDownloadService() : super(serverUrl: 'http://test');
+  _StubDownloadService() : super();
 }
 
 /// 不触碰平台通道的分享服务桩

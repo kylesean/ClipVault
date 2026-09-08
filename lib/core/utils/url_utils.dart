@@ -3,15 +3,10 @@ class UrlUtils {
   UrlUtils._();
 
   /// 已知平台域名（按 host 匹配，避免子串误判）
+  /// 纯端版仅支持抖音 / TikTok
   static const Map<String, List<String>> _platformDomains = {
     'douyin': ['douyin.com', 'v.douyin.com', 'iesdouyin.com'],
     'tiktok': ['tiktok.com', 'vm.tiktok.com', 'vt.tiktok.com'],
-    'bilibili': ['bilibili.com', 'b23.tv'],
-    'kuaishou': ['kuaishou.com', 'v.kuaishou.com'],
-    'xiaohongshu': ['xiaohongshu.com', 'xhslink.com'],
-    'youtube': ['youtube.com', 'youtu.be'],
-    'instagram': ['instagram.com', 'instagr.am'],
-    'weibo': ['weibo.com', 'weibo.cn'],
   };
 
   /// 通用 URL 正则
@@ -71,12 +66,6 @@ class UrlUtils {
     return switch (platform) {
       'douyin' => '抖音',
       'tiktok' => 'TikTok',
-      'bilibili' => 'B站',
-      'kuaishou' => '快手',
-      'xiaohongshu' => '小红书',
-      'youtube' => 'YouTube',
-      'instagram' => 'Instagram',
-      'weibo' => '微博',
       _ => '其他',
     };
   }

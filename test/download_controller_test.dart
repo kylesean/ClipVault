@@ -1,5 +1,4 @@
 import 'dart:async';
-import 'dart:io';
 
 import 'package:clip_vault/features/download/download_controller.dart';
 import 'package:clip_vault/features/download/domain/download_task.dart';
@@ -16,7 +15,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 /// 可编程的假下载服务
 class FakeDownloadService extends DownloadService {
-  FakeDownloadService() : super(serverUrl: 'http://test');
+  FakeDownloadService() : super();
 
   /// 每次下载可控的 Completer，用于模拟挂起/取消
   Completer<String>? nextDownloadGate;

@@ -137,7 +137,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               controller: _urlController,
               focusNode: _focusNode,
               decoration: InputDecoration(
-                hintText: '粘贴抖音、B站、快手等视频链接...',
+                hintText: '粘贴抖音、TikTok 视频链接...',
                 border: OutlineInputBorder(
                   borderRadius: BorderRadius.circular(12),
                 ),
@@ -273,8 +273,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   color: Theme.of(context).colorScheme.error,
                   fontSize: 12,
                 ),
-                maxLines: 2,
-                overflow: TextOverflow.ellipsis,
+                // 报错全文展示，不截断（之前 maxLines:2 把关键信息掐掉了）
               )
             : task.status == DownloadStatus.downloading
                 ? Column(
@@ -291,11 +290,31 @@ class _HomePageState extends ConsumerState<HomePage> {
                     ],
                   )
                 : const Text('等待中...'),
-        trailing: IconButton(
-          icon: const Icon(Icons.close_rounded),
-          onPressed: () => ref
-              .read(downloadControllerProvider.notifier)
-              .removeTask(task.id),
+        trailing: Row(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            if (isFailed && task.errorMessage != null)
+              IconButton(
+                icon: const Icon(Icons.copy_rounded),
+                tooltip: '复制完整报错',
+                onPressed: () async {
+                  await Clipboard.setData(
+                    ClipboardData(text: task.errorMessage!),
+                  );
+                  if (mounted) {
+                    ScaffoldMessenger.of(context).showSnackBar(
+                      const SnackBar(content: Text('错误信息已复制')),
+                    );
+                  }
+                },
+              ),
+            IconButton(
+              icon: const Icon(Icons.close_rounded),
+              onPressed: () => ref
+                  .read(downloadControllerProvider.notifier)
+                  .removeTask(task.id),
+            ),
+          ],
         ),
       ),
     );

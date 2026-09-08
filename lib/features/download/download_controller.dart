@@ -4,6 +4,7 @@ import 'dart:collection';
 import 'package:collection/collection.dart';
 import 'package:dio/dio.dart';
 import 'package:drift/drift.dart' as drift;
+import 'package:flutter/foundation.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
 
@@ -348,7 +349,11 @@ class DownloadController extends Notifier<DownloadQueueState> {
               .showDownloadComplete(result.title),
         );
       }
-    } catch (e) {
+    } catch (e, st) {
+      // 完整错误打到控制台（flutter run 日志），界面只展示 e.toString()
+      debugPrint('ClipVault 下载失败 task=${task.id} url=${task.url}');
+      debugPrint('$e');
+      debugPrint('$st');
       if (e is DioException && CancelToken.isCancel(e)) {
         _updateTask(task.id, (t) => t.copyWith(status: DownloadStatus.paused));
         await _updateDbStatus(task.id, 'paused');

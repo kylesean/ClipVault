@@ -39,12 +39,10 @@ migrate_working_dir/
 app.*.symbols
 app.*.map.json
 
-# Python
+# Dart
 .venv/
-backend/.venv/
 __pycache__/
 
 # Sensitive data
-backend/cookies/*.txt
 .env
 

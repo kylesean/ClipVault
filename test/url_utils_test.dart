@@ -20,19 +20,19 @@ void main() {
         'https://v.douyin.com/abc',
       );
       expect(
-        UrlUtils.extractUrl('https://youtu.be/abc？'),
-        'https://youtu.be/abc',
+        UrlUtils.extractUrl('https://vm.tiktok.com/abc？'),
+        'https://vm.tiktok.com/abc',
       );
     });
 
     test('裁剪尾部英文标点/括号', () {
       expect(
-        UrlUtils.extractUrl('(https://youtu.be/abc)'),
-        'https://youtu.be/abc',
+        UrlUtils.extractUrl('(https://vm.tiktok.com/abc)'),
+        'https://vm.tiktok.com/abc',
       );
       expect(
-        UrlUtils.extractUrl('https://www.bilibili.com/video/BV1xx411c7mD，'),
-        'https://www.bilibili.com/video/BV1xx411c7mD',
+        UrlUtils.extractUrl('https://www.douyin.com/video/123，'),
+        'https://www.douyin.com/video/123',
       );
     });
 
@@ -49,20 +49,30 @@ void main() {
         'douyin',
       );
       expect(
-        UrlUtils.detectPlatform('https://www.bilibili.com/video/BV1xx'),
-        'bilibili',
-      );
-      expect(
-        UrlUtils.detectPlatform('https://youtu.be/dQw4w9WgXcQ'),
-        'youtube',
+        UrlUtils.detectPlatform('https://www.tiktok.com/@x/video/123'),
+        'tiktok',
       );
       expect(UrlUtils.detectPlatform('https://vm.tiktok.com/abc'), 'tiktok');
     });
 
     test('识别子域', () {
       expect(UrlUtils.detectPlatform('https://v.douyin.com/abc'), 'douyin');
-      expect(UrlUtils.detectPlatform('https://b23.tv/abc'), 'bilibili');
-      expect(UrlUtils.detectPlatform('https://xhslink.com/abc'), 'xiaohongshu');
+      expect(UrlUtils.detectPlatform('https://vt.tiktok.com/abc'), 'tiktok');
+    });
+
+    test('仅支持抖音/TikTok，其他平台返回 null', () {
+      expect(
+        UrlUtils.detectPlatform('https://www.bilibili.com/video/BV1xx'),
+        isNull,
+      );
+      expect(
+        UrlUtils.detectPlatform('https://youtu.be/dQw4w9WgXcQ'),
+        isNull,
+      );
+      expect(
+        UrlUtils.detectPlatform('https://www.instagram.com/p/xyz/'),
+        isNull,
+      );
     });
 
     test('host 锚定，拒绝伪造域名', () {
@@ -87,7 +97,7 @@ void main() {
     test('平台链接有效', () {
       expect(UrlUtils.isValidVideoUrl('https://v.douyin.com/abc'), isTrue);
       expect(
-        UrlUtils.isValidVideoUrl('https://www.instagram.com/p/xyz/'),
+        UrlUtils.isValidVideoUrl('https://www.tiktok.com/@x/video/123'),
         isTrue,
       );
     });
@@ -100,9 +110,9 @@ void main() {
   group('UrlUtils.extractAllUrls', () {
     test('提取文本中的多个链接', () {
       final urls = UrlUtils.extractAllUrls(
-        '看这个 https://v.douyin.com/a 和 https://youtu.be/b，',
+        '看这个 https://v.douyin.com/a 和 https://vm.tiktok.com/b，',
       );
-      expect(urls, ['https://v.douyin.com/a', 'https://youtu.be/b']);
+      expect(urls, ['https://v.douyin.com/a', 'https://vm.tiktok.com/b']);
     });
   });
 }

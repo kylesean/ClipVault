@@ -3,30 +3,29 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 
 import 'package:clip_vault/core/constants/app_constants.dart';
+import 'package:clip_vault/features/decode/douyin_api.dart'
+    show normalizeCookie;
 
 const _keyClipboard = 'settings_clipboard_monitor';
 const _keyMaxDownloads = 'settings_max_concurrent_downloads';
 const _keyNotification = 'settings_download_notification';
 const _keyThemeMode = 'settings_theme_mode';
-const _keyServerUrl = 'settings_server_url';
-const _keyApiToken = 'settings_api_token';
+const _keyCookie = 'settings_cookie';
 
-/// 设置状态
+/// 设置状态（纯端：代理已删除，仅保留 Cookie）
 class SettingsState {
   final bool clipboardMonitor;
   final int maxConcurrentDownloads;
   final bool downloadNotification;
   final ThemeMode themeMode;
-  final String serverUrl;
-  final String apiToken;
+  final String cookie;
 
   const SettingsState({
     this.clipboardMonitor = true,
     this.maxConcurrentDownloads = AppConstants.defaultMaxConcurrentDownloads,
     this.downloadNotification = true,
     this.themeMode = ThemeMode.system,
-    this.serverUrl = AppConstants.parseApiBaseUrl,
-    this.apiToken = '',
+    this.cookie = '',
   });
 
   SettingsState copyWith({
@@ -34,8 +33,7 @@ class SettingsState {
     int? maxConcurrentDownloads,
     bool? downloadNotification,
     ThemeMode? themeMode,
-    String? serverUrl,
-    String? apiToken,
+    String? cookie,
   }) {
     return SettingsState(
       clipboardMonitor: clipboardMonitor ?? this.clipboardMonitor,
@@ -43,8 +41,7 @@ class SettingsState {
           maxConcurrentDownloads ?? this.maxConcurrentDownloads,
       downloadNotification: downloadNotification ?? this.downloadNotification,
       themeMode: themeMode ?? this.themeMode,
-      serverUrl: serverUrl ?? this.serverUrl,
-      apiToken: apiToken ?? this.apiToken,
+      cookie: cookie ?? this.cookie,
     );
   }
 
@@ -62,8 +59,7 @@ class SettingsState {
           AppConstants.defaultMaxConcurrentDownloads,
       downloadNotification: prefs.getBool(_keyNotification) ?? true,
       themeMode: themeMode,
-      serverUrl: prefs.getString(_keyServerUrl) ?? AppConstants.parseApiBaseUrl,
-      apiToken: prefs.getString(_keyApiToken) ?? '',
+      cookie: prefs.getString(_keyCookie) ?? '',
     );
   }
 }
@@ -85,8 +81,7 @@ class SettingsController extends Notifier<SettingsState> {
     await prefs.setInt(_keyMaxDownloads, state.maxConcurrentDownloads);
     await prefs.setBool(_keyNotification, state.downloadNotification);
     await prefs.setInt(_keyThemeMode, state.themeMode.index);
-    await prefs.setString(_keyServerUrl, state.serverUrl);
-    await prefs.setString(_keyApiToken, state.apiToken);
+    await prefs.setString(_keyCookie, state.cookie);
   }
 
   void setClipboardMonitor(bool value) {
@@ -109,13 +104,8 @@ class SettingsController extends Notifier<SettingsState> {
     _persist();
   }
 
-  void setServerUrl(String url) {
-    state = state.copyWith(serverUrl: url.trim());
-    _persist();
-  }
-
-  void setApiToken(String token) {
-    state = state.copyWith(apiToken: token.trim());
+  void setCookie(String cookie) {
+    state = state.copyWith(cookie: cookie.trim());
     _persist();
   }
 }
@@ -207,25 +197,21 @@ class SettingsPage extends ConsumerWidget {
 
           const Divider(),
 
-          // 服务器
-          _buildSectionHeader(context, '服务器'),
-          _ServerUrlTile(
-            currentUrl: settings.serverUrl,
-            onSave: controller.setServerUrl,
-          ),
-          _ApiTokenTile(
-            currentToken: settings.apiToken,
-            onSave: controller.setApiToken,
+          // 网络
+          _buildSectionHeader(context, '网络'),
+          _CookieTile(
+            currentCookie: settings.cookie,
+            onSave: controller.setCookie,
           ),
 
           const Divider(),
 
           // 关于
           _buildSectionHeader(context, '关于'),
-          const ListTile(title: Text('版本'), subtitle: Text('ClipVault v1.0.0')),
+          const ListTile(title: Text('版本'), subtitle: Text('ClipVault v2.0.0')),
           const ListTile(
             title: Text('解析引擎'),
-            subtitle: Text('yt-dlp (1800+ 站点支持)'),
+            subtitle: Text('A-Bogus 本地签名（抖音 / TikTok，无需服务端）'),
           ),
         ],
       ),
@@ -245,34 +231,44 @@ class SettingsPage extends ConsumerWidget {
   }
 }
 
-/// 服务器地址配置组件
-class _ServerUrlTile extends StatefulWidget {
-  final String currentUrl;
+/// Cookie 配置（抖音解析失败时，粘贴浏览器 Cookie 可大幅提升成功率）
+class _CookieTile extends StatefulWidget {
+  final String currentCookie;
   final ValueChanged<String> onSave;
 
-  const _ServerUrlTile({required this.currentUrl, required this.onSave});
+  const _CookieTile({required this.currentCookie, required this.onSave});
 
   @override
-  State<_ServerUrlTile> createState() => _ServerUrlTileState();
+  State<_CookieTile> createState() => _CookieTileState();
 }
 
-class _ServerUrlTileState extends State<_ServerUrlTile> {
+class _CookieTileState extends State<_CookieTile> {
   late final TextEditingController _controller;
   late final FocusNode _focusNode;
+  // 默认明文多行：保证 cookies.txt 粘贴不丢换行。
+  // 注意 Flutter 断言 obscureText 与多行互斥
+  //（'Obscured fields cannot be multiline'），所以隐藏时强制切回单行。
+  bool _obscured = false;
 
   @override
   void initState() {
     super.initState();
-    _controller = TextEditingController(text: widget.currentUrl);
+    _controller = TextEditingController(text: widget.currentCookie);
     _focusNode = FocusNode();
   }
 
+  static int _countItems(String text) {
+    final normalized = normalizeCookie(text);
+    if (normalized.isEmpty) return 0;
+    return normalized.split(';').where((e) => e.trim().isNotEmpty).length;
+  }
+
   @override
-  void didUpdateWidget(_ServerUrlTile oldWidget) {
+  void didUpdateWidget(_CookieTile oldWidget) {
     super.didUpdateWidget(oldWidget);
-    // 仅在未编辑时同步外部变化，避免覆盖正在输入的内容
-    if (oldWidget.currentUrl != widget.currentUrl && !_focusNode.hasFocus) {
-      _controller.text = widget.currentUrl;
+    if (oldWidget.currentCookie != widget.currentCookie &&
+        !_focusNode.hasFocus) {
+      _controller.text = widget.currentCookie;
     }
   }
 
@@ -286,99 +282,23 @@ class _ServerUrlTileState extends State<_ServerUrlTile> {
   void _save() {
     widget.onSave(_controller.text);
     FocusScope.of(context).unfocus();
+    final n = _countItems(_controller.text);
     ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(content: Text('服务器地址已保存'), duration: Duration(seconds: 2)),
-    );
-  }
-
-  @override
-  Widget build(BuildContext context) {
-    return Padding(
-      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      child: Column(
-        crossAxisAlignment: CrossAxisAlignment.start,
-        children: [
-          TextField(
-            controller: _controller,
-            focusNode: _focusNode,
-            decoration: InputDecoration(
-              labelText: '解析服务地址',
-              hintText: 'http://your-server:8000',
-              border: OutlineInputBorder(
-                borderRadius: BorderRadius.circular(12),
-              ),
-              suffixIcon: IconButton(
-                icon: const Icon(Icons.check_rounded),
-                onPressed: _save,
-              ),
-            ),
-            keyboardType: TextInputType.url,
-            onSubmitted: (_) => _save(),
-          ),
-          const SizedBox(height: 4),
-          Text(
-            '部署后修改为你的服务器地址，如 https://api.example.com',
-            style: Theme.of(context).textTheme.bodySmall?.copyWith(
-              color: Theme.of(context).colorScheme.outline,
-            ),
-          ),
-        ],
-      ),
-    );
-  }
-}
-
-/// API Token 配置组件（服务端设置 CLIPVAULT_API_TOKEN 后填写）
-class _ApiTokenTile extends StatefulWidget {
-  final String currentToken;
-  final ValueChanged<String> onSave;
-
-  const _ApiTokenTile({required this.currentToken, required this.onSave});
-
-  @override
-  State<_ApiTokenTile> createState() => _ApiTokenTileState();
-}
-
-class _ApiTokenTileState extends State<_ApiTokenTile> {
-  late final TextEditingController _controller;
-  late final FocusNode _focusNode;
-  bool _obscured = true;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = TextEditingController(text: widget.currentToken);
-    _focusNode = FocusNode();
-  }
-
-  @override
-  void didUpdateWidget(_ApiTokenTile oldWidget) {
-    super.didUpdateWidget(oldWidget);
-    if (oldWidget.currentToken != widget.currentToken && !_focusNode.hasFocus) {
-      _controller.text = widget.currentToken;
-    }
-  }
-
-  @override
-  void dispose() {
-    _controller.dispose();
-    _focusNode.dispose();
-    super.dispose();
-  }
-
-  void _save() {
-    widget.onSave(_controller.text);
-    FocusScope.of(context).unfocus();
-    ScaffoldMessenger.of(context).showSnackBar(
-      const SnackBar(
-        content: Text('API Token 已保存'),
-        duration: Duration(seconds: 2),
+      SnackBar(
+        content: Text(n > 0 ? 'Cookie 已保存（已识别 $n 项）' : 'Cookie 已清空'),
+        duration: const Duration(seconds: 2),
       ),
     );
   }
 
   @override
   Widget build(BuildContext context) {
+    // widget.currentCookie 来自已落库的 SettingsState（内存+磁盘一致后更新），
+    // _controller.text 是编辑框草稿。两者不一致 = 改了没存，一目了然。
+    // 注意保存时会 trim，比较时同样 trim，避免尾换行导致警告消不掉。
+    final savedCount = _countItems(widget.currentCookie);
+    final dirty = _controller.text.trim() != widget.currentCookie;
+    final draftCount = _countItems(_controller.text);
     return Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Column(
@@ -388,33 +308,60 @@ class _ApiTokenTileState extends State<_ApiTokenTile> {
             controller: _controller,
             focusNode: _focusNode,
             obscureText: _obscured,
+            // cookies.txt 是多行文本，明文时允许多行粘贴；
+            // 隐藏时必须单行（框架断言要求）
+            minLines: 1,
+            maxLines: _obscured ? 1 : 6,
+            keyboardType: TextInputType.multiline,
             decoration: InputDecoration(
-              labelText: 'API Token（可选）',
-              hintText: '服务端 CLIPVAULT_API_TOKEN',
+              labelText: 'Cookie（可选）',
+              hintText: 'a=1; b=2，或直接粘贴 cookies.txt 导出的全部文本',
               border: OutlineInputBorder(
                 borderRadius: BorderRadius.circular(12),
               ),
-              suffixIcon: IconButton(
-                icon: Icon(
-                  _obscured
-                      ? Icons.visibility_rounded
-                      : Icons.visibility_off_rounded,
-                ),
-                onPressed: () => setState(() => _obscured = !_obscured),
+              suffixIcon: Row(
+                mainAxisSize: MainAxisSize.min,
+                children: [
+                  IconButton(
+                    icon: const Icon(Icons.check_rounded),
+                    tooltip: '保存',
+                    onPressed: _save,
+                  ),
+                  IconButton(
+                    icon: Icon(
+                      _obscured
+                          ? Icons.visibility_rounded
+                          : Icons.visibility_off_rounded,
+                    ),
+                    tooltip: '显示/隐藏',
+                    onPressed: () => setState(() => _obscured = !_obscured),
+                  ),
+                ],
               ),
             ),
+            onChanged: (_) => setState(() {}),
             onSubmitted: (_) => _save(),
           ),
           const SizedBox(height: 4),
           Row(
             children: [
-              const Icon(Icons.check_rounded, size: 14),
+              Icon(
+                dirty ? Icons.warning_amber_rounded : Icons.check_rounded,
+                size: 14,
+                color: dirty ? Colors.orange : null,
+              ),
               const SizedBox(width: 4),
               Expanded(
                 child: Text(
-                  '服务端已设置 CLIPVAULT_API_TOKEN 时填写，留空则不发送',
+                  dirty
+                      ? '有未保存的更改（草稿 $draftCount 项），点 ✓ 保存后生效'
+                      : savedCount > 0
+                      ? '已保存 $savedCount 项 Cookie，解析时自动携带'
+                      : '空。抖音解析失败时粘贴浏览器 Cookie，记得点 ✓ 保存',
                   style: Theme.of(context).textTheme.bodySmall?.copyWith(
-                    color: Theme.of(context).colorScheme.outline,
+                    color: dirty
+                        ? Colors.orange
+                        : Theme.of(context).colorScheme.outline,
                   ),
                 ),
               ),

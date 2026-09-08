@@ -89,16 +89,8 @@ class LibraryPage extends ConsumerWidget {
                   child: Text('抖音'),
                 ),
                 const PopupMenuItem(
-                  value: 'platform:bilibili',
-                  child: Text('B站'),
-                ),
-                const PopupMenuItem(
-                  value: 'platform:kuaishou',
-                  child: Text('快手'),
-                ),
-                const PopupMenuItem(
-                  value: 'platform:xiaohongshu',
-                  child: Text('小红书'),
+                  value: 'platform:tiktok',
+                  child: Text('TikTok'),
                 ),
               ],
             ),

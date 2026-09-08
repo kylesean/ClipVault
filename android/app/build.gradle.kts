@@ -6,7 +6,11 @@ plugins {
 
 android {
     namespace = "com.clipvault.clip_vault"
-    compileSdk = 37
+    // 跟随 Flutter 默认（3.47 为 36）。不要硬编码 37：
+    // 稳定版 android-37 尚未公开发布，SDK 仓库只有 37.0 预览版，
+    // 当前 AGP 无法识别，会报 Failed to find target 'android-37'。
+    // 等 Flutter 默认升到 37 后这里会自动跟进。
+    compileSdk = flutter.compileSdkVersion
     ndkVersion = flutter.ndkVersion
 
     compileOptions {

@@ -1,7 +1,7 @@
 name: clip_vault
 description: "ClipVault - 短视频下载管理工具"
 publish_to: 'none'
-version: 1.0.0+1
+version: 2.0.0+1
 
 environment:
   sdk: ^3.12.2
@@ -38,7 +38,9 @@ dependencies:
   shared_preferences: ^2.3.4
 
   # Share Intent
-  receive_sharing_intent: ^1.8.1
+  # 分享接收：钉死 1.8.1。1.9.0 硬编码 compileSdk 37，
+  # 而稳定版 android-37 尚未公开发布（见 android/app/build.gradle.kts 注释）。
+  receive_sharing_intent: 1.8.1
 
   # Notifications
   flutter_local_notifications: ^18.0.1

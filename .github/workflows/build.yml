@@ -6,11 +6,18 @@ on:
       - "v*"
     paths:
       - "lib/**"
+      - "test/**"
       - "android/**"
       - "ios/**"
       - "pubspec.yaml"
       - "pubspec.lock"
       - ".github/workflows/build.yml"
+  pull_request:
+    paths:
+      - "lib/**"
+      - "test/**"
+      - "pubspec.yaml"
+      - "pubspec.lock"
   workflow_dispatch:
 
 permissions:
@@ -34,6 +41,8 @@ jobs:
           cache: true
 
       - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
       - run: flutter build apk --release
 
       - name: Prepare Android Release Artifact
@@ -60,6 +69,8 @@ jobs:
           cache: true
 
       - run: flutter pub get
+      - run: flutter analyze
+      - run: flutter test
       - run: flutter build ios --release --no-codesign
 
       - name: Create IPA for Sideloading
