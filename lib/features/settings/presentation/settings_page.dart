@@ -207,7 +207,7 @@ class SettingsPage extends ConsumerWidget {
 
           // 关于
           _buildSectionHeader(context, '关于'),
-          const ListTile(title: Text('版本'), subtitle: Text('ClipVault v2.0.1')),
+          const ListTile(title: Text('版本'), subtitle: Text('ClipVault v2.0.2')),
           const ListTile(
             title: Text('解析引擎'),
             subtitle: Text('A-Bogus 本地签名（抖音 / TikTok，无需服务端）'),

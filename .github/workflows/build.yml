@@ -33,7 +33,9 @@ jobs:
       - uses: actions/setup-java@v4
         with:
           distribution: temurin
-          java-version: "17"
+          # 与本地一致用 21：旧插件的 Kotlin 目标跟随运行 JDK，
+          # 17/21 混用会在 receive_sharing_intent 上触发 JVM 目标不一致
+          java-version: "21"
 
       - uses: subosito/flutter-action@v2
         with:

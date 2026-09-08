@@ -1,7 +1,7 @@
 name: clip_vault
 description: "ClipVault - 短视频下载管理工具"
 publish_to: 'none'
-version: 2.0.1+2
+version: 2.0.2+3
 
 environment:
   sdk: ^3.12.2
